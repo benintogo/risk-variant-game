@@ -1,0 +1,12 @@
+.DS_Store
+data/.DS_Store
+scripts/.DS_Store
+
+# Local analysis files that are not part of the Risk game.
+athlete_events_winter.csv
+winter_podium_permutation_frequencies.csv
+winter_podiums_by_event_year.csv
+
+# Map source/build files are useful locally but not needed by GitHub Pages.
+data/vendor/
+scripts/
