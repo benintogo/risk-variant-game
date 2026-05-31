@@ -118,6 +118,9 @@ let onlineGameId = localStorage.getItem(ONLINE_GAME_ID_KEY) || "";
 let onlineSaveTimer = null;
 let onlineSaveInFlight = false;
 let onlineSaveQueued = false;
+let onlineRefreshTimer = null;
+let onlineRefreshInFlight = false;
+let lastOnlineStateText = "";
 let setupMode = false;
 let sessionRole = localStorage.getItem(SESSION_ROLE_KEY) || "player";
 let sessionPlayerId = localStorage.getItem(SESSION_PLAYER_KEY) || "";
@@ -556,6 +559,14 @@ function rememberOnlineGameId(id) {
   if ($("activeOnlineGameId")) $("activeOnlineGameId").value = onlineGameId;
 }
 
+function gameStateText(state = game) {
+  try {
+    return JSON.stringify(state || null);
+  } catch {
+    return "";
+  }
+}
+
 function updateJoinRoleFields() {
   $("joinPlayerNameLabel")?.classList.remove("hidden");
 }
@@ -591,6 +602,8 @@ async function createOnlineGame() {
     return;
   }
   rememberOnlineGameId(data.id);
+  lastOnlineStateText = gameStateText();
+  startOnlineRefresh();
   setOnlineStatus(`Online game created. Share this ID: ${data.id}`);
 }
 
@@ -631,8 +644,51 @@ async function loadOnlineGame(id) {
   rememberOnlineGameId(requestedId);
   resetMapView(false);
   saveLocalGame();
+  lastOnlineStateText = gameStateText();
+  startOnlineRefresh();
   setOnlineStatus(`Loaded latest online game ${requestedId} at ${onlineTimestamp()}.`);
   render();
+}
+
+async function refreshOnlineGame() {
+  if (!onlineClient || !onlineGameId || !game || onlineSaveInFlight || onlineRefreshInFlight) return;
+  onlineRefreshInFlight = true;
+  const stateColumn = onlineStateColumn();
+  const { data, error } = await onlineClient
+    .from(onlineTableName())
+    .select(stateColumn)
+    .eq("id", onlineGameId)
+    .single();
+  onlineRefreshInFlight = false;
+  if (error || !data?.[stateColumn]) return;
+  const nextStateText = gameStateText(data[stateColumn]);
+  if (nextStateText === lastOnlineStateText || nextStateText === gameStateText()) {
+    lastOnlineStateText = nextStateText;
+    return;
+  }
+  const previousTurnId = currentPlayer()?.id || "";
+  const previousPhase = game.phase;
+  const previousPlanningId = game.planningPlayerId || "";
+  game = data[stateColumn];
+  normalizeLoadedGame();
+  lastOnlineStateText = gameStateText();
+  if (game) localStorage.setItem(SAVE_KEY, JSON.stringify(game));
+  const nextTurnId = currentPlayer()?.id || "";
+  if (previousTurnId !== nextTurnId || previousPhase !== game.phase || previousPlanningId !== (game.planningPlayerId || "")) {
+    resetMapView(false, game.phase === "planning" && currentPlanningPlayer()?.id === sessionPlayerId ? currentPlanningPlayer() : visibleSessionPlayer());
+  }
+  render();
+}
+
+function startOnlineRefresh() {
+  if (onlineRefreshTimer) return;
+  onlineRefreshTimer = setInterval(refreshOnlineGame, 20000);
+}
+
+function stopOnlineRefresh() {
+  if (!onlineRefreshTimer) return;
+  clearInterval(onlineRefreshTimer);
+  onlineRefreshTimer = null;
 }
 
 async function saveOnlineGame(options = {}) {
@@ -654,6 +710,7 @@ async function saveOnlineGame(options = {}) {
     setOnlineStatus("Online save failed.");
     return;
   }
+  lastOnlineStateText = gameStateText();
   setOnlineStatus(`Saved online game ${onlineGameId} at ${onlineTimestamp()}.`);
   if (onlineSaveQueued) {
     onlineSaveQueued = false;
@@ -760,7 +817,14 @@ function refreshRegionControlAnnouncements() {
     }
   }
   for (const key of Object.keys(game.regionControlAnnouncements)) {
-    if (!current.has(key)) delete game.regionControlAnnouncements[key];
+    if (!current.has(key)) {
+      const [playerId, region] = key.split("|");
+      const player = game.players.find((candidate) => candidate.id === playerId);
+      if (player && region) {
+        addPrivateLog(`${player.name} no longer controls all countries in ${region}.`, [player.id]);
+      }
+      delete game.regionControlAnnouncements[key];
+    }
   }
 }
 
@@ -803,8 +867,9 @@ function startNewRound(reason) {
   addLog(`${reason}; round ${game.round} begins.`);
   if (totalAwarded > 0) {
     game.phase = "planning";
-    game.planningPlayerId = playersWithRecruits()[0]?.id || null;
-    showTab("planning");
+    game.planningPlayerId = null;
+    resetMapView(false, currentPlanningPlayer() || visibleSessionPlayer());
+    showTab(preferredOpenTab());
   } else {
     game.phase = "turn";
     game.planningPlayerId = null;
@@ -859,7 +924,7 @@ function isPlayerSession() {
 
 function playerSessionCanAct() {
   if (!isPlayerSession()) return true;
-  return currentPlayer()?.id === sessionPlayerId;
+  return game?.phase === "turn" && currentPlayer()?.id === sessionPlayerId;
 }
 
 function setSession(role, playerId = "") {
@@ -916,7 +981,7 @@ function checkEliminations() {
       }
       player.eliminated = true;
       player.reserve = 0;
-      addLog(`${player.name} is eliminated.`);
+      addPrivateLog(`${player.name} is eliminated.`, [player.id]);
     }
   }
   resolveAntarcticaUnclaimedTroops();
@@ -1122,25 +1187,13 @@ function playersWithRecruits() {
 }
 
 function currentPlanningPlayer() {
-  const players = playersWithRecruits();
-  if (!players.length) {
-    game.planningPlayerId = null;
-    return null;
-  }
-  if (!players.some((player) => player.id === game.planningPlayerId)) {
-    game.planningPlayerId = players[0].id;
-  }
-  return players.find((player) => player.id === game.planningPlayerId) || players[0];
+  const player = sessionPlayer();
+  if (player && player.reserve > 0 && !player.eliminated) return player;
+  return null;
 }
 
-function advancePlanningPlayer() {
-  const players = playersWithRecruits();
-  if (!players.length) {
-    game.planningPlayerId = null;
-    return;
-  }
-  const currentIndex = players.findIndex((player) => player.id === game.planningPlayerId);
-  game.planningPlayerId = players[Math.max(0, currentIndex + 1) % players.length].id;
+function allRecruitsPlaced() {
+  return activePlayers().every((player) => player.reserve <= 0);
 }
 
 function renderSetupNames() {
@@ -1212,21 +1265,20 @@ function renderBoard() {
 }
 
 function renderPlanning() {
-  const players = activePlayers();
-  $("incomeRows").innerHTML = players.map((player) => {
-    const magnitudeSum = ownedCountries(player.id).reduce((sum, country) => sum + country.magnitude, 0);
-    const regions = controlledRegions(player.id);
-    const bonus = regions.reduce((sum, region) => sum + (REGION_BONUSES[region] || 0), 0);
-    return `<div class="income-card"><strong>${player.name}</strong><span>Magnitude ${magnitudeSum} / 25 + carry ${player.carry.toFixed(2)} · region bonus ${bonus} · reserve ${player.reserve}</span></div>`;
-  }).join("");
   const planningPlayer = currentPlanningPlayer();
   setOptions($("placePlayer"), planningPlayer ? [planningPlayer] : [], (p) => `${p.name} (${p.reserve} recruits)`, (p) => p.id);
+  $("placeForm").classList.toggle("hidden", !planningPlayer);
   updatePlaceCountries();
   renderPlanningVisible();
 }
 
 function updatePlaceCountries() {
   const playerId = $("placePlayer").value;
+  if (!playerId) {
+    setOptions($("placeCountry"), []);
+    $("placeAmount").disabled = true;
+    return;
+  }
   const owned = ownedCountries(playerId);
   const destinations = [...owned];
   if (owned.some((country) => ANTARCTICA_CONNECTIONS.has(country.name))) destinations.push(ANTARCTICA_PLACE);
@@ -1332,12 +1384,15 @@ function renderRegionProgress(player, elementId) {
 
 function renderTurn() {
   const player = currentPlayer();
+  const playersStillPlacing = playersWithRecruits();
   const winningPlayer = winner();
   const transferStage = game.turnStage === "transfer";
   const canAct = playerSessionCanAct();
   const viewingPlayer = visibleSessionPlayer();
   $("turnTitle").textContent = winningPlayer
     ? `${winningPlayer.name} Wins`
+    : game.phase === "planning"
+    ? `${viewingPlayer?.name || "Player"}'s Map`
     : isPlayerSession() && !canAct
     ? `${viewingPlayer?.name || "Player"}'s Map`
     : player
@@ -1345,6 +1400,8 @@ function renderTurn() {
     : "Game Over";
   $("turnNote").textContent = winningPlayer
     ? "Only one player remains. The game is complete."
+    : game.phase === "planning"
+    ? `${playersStillPlacing.length} player${playersStillPlacing.length === 1 ? "" : "s"} still placing recruits. Your map remains visible here.`
     : isPlayerSession() && !canAct
     ? `It is currently ${player?.name || "another player"}'s turn. Your map remains visible here.`
     : player
@@ -1459,10 +1516,9 @@ function appendOceanLayer(svg, view) {
   svg.appendChild(grain);
 }
 
-function resetMapView(renderNow = true) {
+function resetMapView(renderNow = true, player = visibleSessionPlayer()) {
   mapView = { x: 0, y: 0, width: 1000, height: 500 };
   selectedMapCountry = null;
-  const player = currentPlayer();
   const strongest = player
     ? ownedCountries(player.id)
         .slice()
@@ -1953,14 +2009,14 @@ function renderVisible() {
 }
 
 function renderPlanningVisible() {
-  const planningPlayer = currentPlanningPlayer();
-  renderPlayerMapFor(planningPlayer, {
+  const player = currentPlanningPlayer() || visibleSessionPlayer();
+  renderPlayerMapFor(player, {
     svgId: "planningPlayerMap",
     detailsId: "planningMapDetails",
     unmappedId: "planningUnmappedVisible",
     labelId: "planningVisiblePlayerLabel"
   });
-  renderRegionProgress(planningPlayer, "planningRegionProgress");
+  renderRegionProgress(player, "planningRegionProgress");
 }
 
 function renderModeratorMap() {
@@ -2070,8 +2126,8 @@ function renderLog() {
 function canOpenTab(name) {
   if (!game) return false;
   if (name === "moderator") return false;
-  if (name === "planning") return game.phase === "planning" && currentPlanningPlayer()?.id === sessionPlayerId;
-  if (name === "turn") return game.phase !== "planning" && game.phase !== "gameover";
+  if (name === "planning") return game.phase === "planning" && sessionPlayer()?.reserve > 0;
+  if (name === "turn") return game.phase !== "gameover";
   return name === "log";
 }
 
@@ -2484,6 +2540,7 @@ function bindEvents() {
   });
   $("mainMenuButton").addEventListener("click", () => {
     if (game && !confirm("Return to the main menu? Your online game will not be deleted.")) return;
+    stopOnlineRefresh();
     game = null;
     setupMode = false;
     resetMapView();
@@ -2527,7 +2584,10 @@ function bindEvents() {
       game.troops[country] = countryTroops(country) + amount;
     }
     addPrivateLog(`${player.name} places ${amount} recruits in ${country}.`, [player.id]);
-    if (game.phase === "planning" && player.reserve <= 0) advancePlanningPlayer();
+    if (game.phase === "planning" && allRecruitsPlaced()) {
+      resolvePlanning();
+      return;
+    }
     saveGame();
     render();
   });
@@ -2559,7 +2619,7 @@ function bindEvents() {
     saveGame();
     render();
   });
-  $("resolvePlanningButton").addEventListener("click", resolvePlanning);
+  if ($("resolvePlanningButton")) $("resolvePlanningButton").addEventListener("click", resolvePlanning);
   $("finishAttackButton").addEventListener("click", () => {
     game.turnStage = "transfer";
     render();

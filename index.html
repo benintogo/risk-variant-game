@@ -136,14 +136,6 @@
         </section>
 
         <section id="planningTab" class="tab-view hidden">
-          <div class="panel">
-            <div class="panel-header">
-              <h2>Beginning of Round</h2>
-            </div>
-            <p class="note">Recruits are calculated automatically. Place any available recruits, then begin turns.</p>
-            <div id="incomeRows" class="income-grid"></div>
-          </div>
-
           <form id="placeForm" class="panel">
             <h3>Place Recruits</h3>
             <label>Player <select id="placePlayer"></select></label>
@@ -168,13 +160,6 @@
             </div>
             <div id="planningUnmappedVisible" class="unmapped-list"></div>
             <div id="planningRegionProgress" class="region-progress"></div>
-          </div>
-
-          <div class="panel">
-            <div class="panel-header">
-              <h3>Ready</h3>
-              <button id="resolvePlanningButton" type="button" class="primary">Begin Turns</button>
-            </div>
           </div>
         </section>
 
@@ -260,6 +245,6 @@
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="supabase-config.js?v=20260531-online-save-1"></script>
-    <script src="app.js?v=20260531-private-player-log-1"></script>
+    <script src="app.js?v=20260531-simultaneous-recruits-1"></script>
   </body>
 </html>
