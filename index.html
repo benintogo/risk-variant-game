@@ -68,9 +68,8 @@
 
       <section id="gameView" class="hidden">
         <nav class="tabs" aria-label="Views">
-          <button class="tab" type="button" data-tab="planning">Round Planning</button>
+          <button class="tab" type="button" data-tab="planning">Place Recruits</button>
           <button class="tab active" type="button" data-tab="turn">Turn Actions</button>
-          <button class="tab" type="button" data-tab="log">Log</button>
         </nav>
 
         <section id="moderatorTab" class="tab-view">
@@ -164,7 +163,7 @@
         </section>
 
         <section id="turnTab" class="tab-view hidden">
-          <div class="panel">
+          <div class="panel compact-turn-status">
             <div class="panel-header">
               <h2 id="turnTitle">Turn</h2>
               <div class="top-actions">
@@ -233,18 +232,20 @@
         </section>
 
         <section id="logTab" class="tab-view hidden">
-          <div class="panel">
+          <div class="panel log-modal">
             <div class="panel-header">
               <h2>Roll & Game Log</h2>
+              <button id="closeLogButton" type="button">Close</button>
             </div>
             <ol id="logList" class="log-list"></ol>
           </div>
         </section>
+        <button id="openLogButton" type="button" class="log-dock">Log</button>
       </section>
     </main>
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="supabase-config.js?v=20260531-online-save-1"></script>
-    <script src="app.js?v=20260531-simultaneous-recruits-1"></script>
+    <script src="app.js?v=20260531-compact-player-map-1"></script>
   </body>
 </html>

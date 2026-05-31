@@ -1775,6 +1775,83 @@ function visibleDetailHtml(country, visibility, playerId) {
   `;
 }
 
+function contextualActionHtml(country, playerId, detailsId) {
+  if (!country || !playerId || isAntarctica(country.name)) return "";
+  const owner = game.ownership[country.name];
+  const current = currentPlayer();
+  const isOwnCountry = owner === playerId;
+  if (detailsId === "planningMapDetails") {
+    const player = sessionPlayer();
+    if (game.phase !== "planning" || !player || player.id !== playerId || !isOwnCountry || player.reserve <= 0) return "";
+    return `
+      <form class="map-action-panel" data-context-action="place-recruits" data-country="${country.name}">
+        <label>Recruits
+          <input name="amount" type="number" min="1" max="${player.reserve}" value="1">
+        </label>
+        <button type="submit" class="primary">Place here</button>
+      </form>
+    `;
+  }
+  if (game.phase !== "turn" || !playerSessionCanAct() || !current || current.id !== playerId || !isOwnCountry) return "";
+  if (game.turnStage === "transfer") {
+    const destinations = ownedCountries(playerId)
+      .filter((candidate) => candidate.name !== country.name && hasOwnedTransferPath(playerId, country.name, candidate.name));
+    if (!destinations.length || movableTroops(country.name) < 1) return "";
+    return `
+      <form class="map-action-panel" data-context-action="transfer" data-from="${country.name}">
+        <label>Transfer to
+          <select name="target">
+            ${destinations.map((target) => `<option value="${target.name}">${target.name}</option>`).join("")}
+          </select>
+        </label>
+        <label>Troops
+          <input name="amount" type="number" min="1" max="${movableTroops(country.name)}" value="1">
+        </label>
+        <button type="submit" class="primary">Transfer</button>
+      </form>
+      <div class="map-action-panel">
+        <button type="button" class="primary" data-context-button="end-turn">End turn</button>
+      </div>
+    `;
+  }
+  const claims = claimOptionsFor(country.name);
+  const attacks = attackOptionsFor(country.name);
+  return `
+    <div class="map-action-panel">
+      ${claims.length ? `
+        <form data-context-action="claim" data-from="${country.name}">
+          <label>Claim
+            <select name="target">
+              ${claims.map((name) => `<option value="${name}">${name} (magnitude ${countryByName.get(name)?.magnitude ?? "?"})</option>`).join("")}
+            </select>
+          </label>
+          <label>Troops
+            <input name="amount" type="number" min="1" value="1">
+          </label>
+          <button type="submit" class="primary">Claim</button>
+        </form>
+      ` : ""}
+      ${attacks.length ? `
+        <form data-context-action="attack" data-from="${country.name}">
+          <label>Attack
+            <select name="target" class="context-attack-target">
+              ${attacks.map((option) => `<option value="${option.target}">${option.target} (${option.type})</option>`).join("")}
+            </select>
+          </label>
+          <label>Attack dice
+            <select name="dice" class="context-attack-dice"></select>
+          </label>
+          <label>Move on conquest
+            <input name="move" type="number" min="1" value="1">
+          </label>
+          <button type="submit" class="primary">Attack</button>
+        </form>
+      ` : ""}
+      <button type="button" data-context-button="finish-attacking">Finished attacking</button>
+    </div>
+  `;
+}
+
 function moderatorLabelLines(country) {
   if (isAntarctica(country.name)) return [country.name, `${totalAntarcticaTroops()} troops`];
   const owner = game.ownership[country.name];
@@ -1892,7 +1969,9 @@ function selectVisibleMapCountry(countryName, visible, playerId, svgId = "player
   $(svgId).querySelectorAll(".map-country").forEach((node) => {
     node.classList.toggle("active", node.dataset.country === countryName);
   });
-  $(detailsId).innerHTML = visibleDetailHtml(entry.country, entry.visibility, playerId);
+  $(detailsId).innerHTML = visibleDetailHtml(entry.country, entry.visibility, playerId) + contextualActionHtml(entry.country, playerId, detailsId);
+  updateContextAttackDice(detailsId);
+  updateContextClaimAmount(detailsId);
 }
 
 function applyKnownOwnerColor(path, country) {
@@ -1991,8 +2070,10 @@ function renderPlayerMapFor(player, { svgId, detailsId, unmappedId, labelId }) {
     });
   }
   $(detailsId).innerHTML = selected
-    ? visibleDetailHtml(selected.country, selected.visibility, playerId)
+    ? visibleDetailHtml(selected.country, selected.visibility, playerId) + contextualActionHtml(selected.country, playerId, detailsId)
     : "<strong>Visible Map</strong><p>Select a country on the map or a visible place below to see details.</p>";
+  updateContextAttackDice(detailsId);
+  updateContextClaimAmount(detailsId);
 }
 
 function renderVisible() {
@@ -2489,6 +2570,75 @@ function handleLimitedAttack(attacker, from, target) {
   render();
 }
 
+function updateContextAttackDice(rootId = "mapDetails") {
+  const root = $(rootId);
+  if (!root) return;
+  root.querySelectorAll('[data-context-action="attack"]').forEach((form) => {
+    const from = form.dataset.from;
+    const target = form.querySelector('[name="target"]')?.value;
+    const diceSelect = form.querySelector('[name="dice"]');
+    const moveInput = form.querySelector('[name="move"]');
+    const option = attackOptionsFor(from).find((item) => item.target === target);
+    const max = option ? Math.min(option.maxDice, countryTroops(from) - 1) : 0;
+    diceSelect.innerHTML = "";
+    for (let value = 1; value <= max; value += 1) {
+      const optionNode = document.createElement("option");
+      optionNode.value = String(value);
+      optionNode.textContent = String(value);
+      diceSelect.appendChild(optionNode);
+    }
+    if (max > 0) diceSelect.value = String(max);
+    if (moveInput) moveInput.value = String(Math.max(1, Math.min(max || 1, countryTroops(from) - 1)));
+  });
+}
+
+function updateContextClaimAmount(rootId = "mapDetails") {
+  const root = $(rootId);
+  if (!root) return;
+  root.querySelectorAll('[data-context-action="claim"]').forEach((form) => {
+    const target = countryByName.get(form.querySelector('[name="target"]')?.value);
+    const input = form.querySelector('[name="amount"]');
+    const min = Math.max(1, target?.magnitude || 0);
+    input.min = String(min);
+    if (Number(input.value || 0) < min) input.value = String(min);
+  });
+}
+
+function submitContextAction(form) {
+  const action = form.dataset.contextAction;
+  if (action === "place-recruits") {
+    $("placeCountry").value = form.dataset.country;
+    $("placeAmount").value = form.elements.amount.value;
+    $("placeForm").requestSubmit();
+    return;
+  }
+  if (action === "claim") {
+    $("claimFrom").value = form.dataset.from;
+    updateClaimTargets();
+    $("claimTo").value = form.elements.target.value;
+    $("claimAmount").value = form.elements.amount.value;
+    $("claimForm").requestSubmit();
+    return;
+  }
+  if (action === "attack") {
+    $("attackFrom").value = form.dataset.from;
+    updateAttackTargets();
+    $("attackTo").value = form.elements.target.value;
+    updateAttackDice();
+    $("attackDice").value = form.elements.dice.value;
+    $("conquestMove").value = form.elements.move.value;
+    $("attackForm").requestSubmit();
+    return;
+  }
+  if (action === "transfer") {
+    $("transferFrom").value = form.dataset.from;
+    updateTransferCountries();
+    $("transferTo").value = form.elements.target.value;
+    $("transferAmount").value = form.elements.amount.value;
+    $("transferForm").requestSubmit();
+  }
+}
+
 function bindEvents() {
   $("makeNamesButton").addEventListener("click", renderSetupNames);
   $("playerCount").addEventListener("change", renderSetupNames);
@@ -2548,6 +2698,29 @@ function bindEvents() {
     render();
   });
   document.querySelectorAll(".tab").forEach((button) => button.addEventListener("click", () => showTab(button.dataset.tab)));
+  ["mapDetails", "planningMapDetails"].forEach((id) => {
+    $(id).addEventListener("change", (event) => {
+      if (event.target.matches(".context-attack-target")) updateContextAttackDice(id);
+      if (event.target.closest('[data-context-action="claim"]')) updateContextClaimAmount(id);
+    });
+    $(id).addEventListener("submit", (event) => {
+      const form = event.target.closest("[data-context-action]");
+      if (!form) return;
+      event.preventDefault();
+      submitContextAction(form);
+    });
+    $(id).addEventListener("click", (event) => {
+      const button = event.target.closest("[data-context-button]");
+      if (!button) return;
+      if (button.dataset.contextButton === "finish-attacking") $("finishAttackButton").click();
+      if (button.dataset.contextButton === "end-turn") $("endTurnButton").click();
+    });
+  });
+  $("openLogButton").addEventListener("click", () => {
+    renderLog();
+    $("logTab").classList.remove("hidden");
+  });
+  $("closeLogButton").addEventListener("click", () => $("logTab").classList.add("hidden"));
   bindMapControls();
   bindModeratorMapControls();
   $("boardSearch").addEventListener("input", renderBoard);
