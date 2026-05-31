@@ -1,0 +1,266 @@
+Object_ID,Name,Magnitude,Region,Network,Land Borders,Maritime Borders
+254,United States,9,North America,United States,Canada; Mexico,Bahamas; Cuba
+3,Alaska,6,Eastern Europe,United States,Canada,Russia
+110,Hawaiian Islands,6,Eastern Oceania,United States,,
+198,Puerto Rico & US Virgin Islands,6,Northern Caribbean,United States,,"Dominican Republic; Venezuela; Anguilla & British Virgin Islands; Saba, Sint Eustatius, & Sint Maarten"
+155,Mariana Islands,5,Southeast Asia,United States,,Japan; Micronesia
+6,American Samoa,4,Eastern Oceania,United States,,"Samoa; Tonga; Cook Islands, Niue, & Tokelau"
+113,Howland and Baker Islands,0,Eastern Oceania,United States,,Phoenix Islands
+126,Jarvis Island,0,Eastern Oceania,United States,,Line Islands
+127,Johnston Atoll,0,Eastern Oceania,United States,,
+134,Kingman Reef and Palmyra Atoll,0,Eastern Oceania,United States,,Line Islands
+261,Wake Island,0,Western Oceania,United States,,Marshall Islands
+253,United Kingdom,8,Northern Europe,United Kingdom,Ireland,Iceland; Faroe Islands; Norway; Denmark; Germany; Netherlands; Belgium; France
+32,Bermuda,5,North America,United Kingdom,,
+50,Cayman Islands,5,Northern Caribbean,United Kingdom,,Cuba; Jamaica; Honduras
+98,Gibraltar,5,Western Europe,United Kingdom,Spain,
+11,Anguilla & British Virgin Islands,4,Northern Caribbean,United Kingdom,,"Puerto Rico & US Virgin Islands; Saint Barthelemy & Saint Martin; Saba, Sint Eustatius, & Sint Maarten; Antigua and Barbuda"
+40,British Indian Ocean Territory,4,Central Asia,United Kingdom,,Maldives
+85,Falkland Islands,4,South America,United Kingdom,,Argentina
+244,Tristan da Cunha Island,4,Southern Africa,United Kingdom,,
+248,Turks and Caicos Islands,4,Northern Caribbean,United Kingdom,,Bahamas; Haiti; Dominican Republic
+166,Montserrat,3,Southern Caribbean,United Kingdom,,Saint Kitts and Nevis; Venezuela; Guadeloupe & Martinique; Antigua and Barbuda
+17,Ascension Island,2,Central Africa,United Kingdom,,
+207,Saint Helena,2,Central Africa,United Kingdom,,
+2,Akrotiri and Dhekelia,1,Northern Middle East,United Kingdom,Cyprus,
+194,Pitcairn Islands,0,Eastern Oceania,United Kingdom,,French Polynesia
+226,South Georgia and the South Sandwich Islands,0,South America,United Kingdom,,
+229,Spain,8,Western Europe,Spain,France; Andorra; Gibraltar; Morocco; Portugal,Algeria; Italy
+49,Canary Islands,6,Western Africa,Spain,,Madeira; Morocco
+225,South Africa,7,Southern Africa,South Africa,Namibia; Botswana; Zimbabwe; Mozambique; Lesotho; Eswatini,
+197,Prince Edward Islands,0,Southern Africa,South Africa,,
+203,Russia,8,Eastern Europe,Russia,Norway; Finland; Estonia; Latvia; Belarus; Ukraine; Georgia; Azerbaijan; Kazakhstan; China; Mongolia; North Korea,Romania; Turkey; Japan; Alaska;
+129,Kaliningrad,5,Eastern Europe,Russia,Lithuania; Poland,Sweden
+196,Portugal,7,Western Europe,Portugal,Spain,Morocco
+21,Azores,5,Western Europe,Portugal,,
+150,Madeira,5,Western Africa,Portugal,,Canary Islands; Morocco
+185,Oman,6,Southern Middle East,Oman,United Arab Emirates; Saudi Arabia; Yemen,Iran; Pakistan
+169,Musandam,4,Southern Middle East,Oman,United Arab Emirates,Iran
+184,Norway,7,Northern Europe,Norway,Sweden; Finland; Russia,Denmark; United Kingdom; Faroe Islands; Greenland
+38,Bouvet Island,0,Southern Africa,Norway,,
+124,Jan Mayen,0,Northern Europe,Norway,,Greenland; Iceland
+177,New Zealand,7,Western Oceania,New Zealand,,Norfolk Island; Macquarie Island
+60,"Cook Islands, Niue, & Tokelau",3,Eastern Oceania,New Zealand,,Tonga; Wallis and Futuna; Samoa; American Samoa; Phoenix Islands; Line Islands; French Polynesia
+133,Kermadec Islands,0,Western Oceania,New Zealand,,
+175,Netherlands,7,Western Europe,Netherlands,Germany; Belgium,United Kingdom
+16,"Aruba, Bonaire, & Curacao",5,Northern Caribbean,Netherlands,,Dominican Republic; Venezuela
+205,"Saba, Sint Eustatius, & Sint Maarten",4,Northern Caribbean,Netherlands,Saint Barthelemy & Saint Martin,Anguilla & British Virgin Islands; Puerto Rico & US Virgin Islands; Venezuela; Saint Kitts and Nevis
+263,West Malaysia,7,East Asia,Malaysia,Thailand,Indonesia; Singapore; Vietnam
+74,East Malaysia,6,Southeast Asia,Malaysia,Brunei; Indonesia,Philippines
+99,Gilbert Islands,2,Western Oceania,Kiribati,,Nauru; Tuvalu; Marshall Islands
+145,Line Islands,2,Eastern Oceania,Kiribati,,"Cook Islands, Niue, & Tokelau; French Polynesia; Kingman Reef and Palmyra Atoll; Jarvis Island"
+193,Phoenix Islands,0,Eastern Oceania,Kiribati,,"Howland and Baker Islands; Cook Islands, Niue, & Tokelau"
+125,Japan,8,East Asia,Japan,,Russia; North Korea; South Korea; China; Taiwan; Philippines; Mariana Islands
+161,Minami-Tori-Shima,0,Southeast Asia,Japan,,
+116,India,8,Central Asia,India,Pakistan; China; Nepal; Bhutan; Bangladesh; Myanmar,Sri Lanka; Maldives
+8,Andaman and Nicobar Islands,3,East Asia,India,,Myanmar; Thailand; Indonesia
+89,France,8,Western Europe,France,Spain; Andorra; Italy; Switzerland; Monaco; Germany; Luxembourg; Belgium,United Kingdom
+201,Reunion & Tromelin Island,6,Southeastern Africa,France,,Mauritius; Madagascar; Seychelles
+90,French Guiana,5,Southern Caribbean,France,Suriname; Brazil,
+91,French Polynesia,5,Eastern Oceania,France,,"Line Islands; Pitcairn Islands; Cook Islands, Niue, & Tokelau"
+104,Guadeloupe & Martinique,5,Southern Caribbean,France,,Antigua and Barbuda; Montserrat; Venezuela; Dominica; Saint Lucia; Barbados
+176,New Caledonia,5,Western Oceania,France,,Norfolk Island; Australia; Solomon Islands; Vanuatu; Fiji
+100,Glorioso Islands & Mayotte,4,Southeastern Africa,France,,Seychelles; Comoros; Madagascar
+206,Saint Barthelemy & Saint Martin,4,Northern Caribbean,France,"Saba, Sint Eustatius, & Sint Maarten",Anguilla & British Virgin Islands; Antigua and Barbuda; Saint Kitts and Nevis
+210,Saint Pierre and Miquelon,4,North America,France,,Canada
+262,Wallis and Futuna,3,Western Oceania,France,,"Samoa; Tonga; Fiji; Tuvalu; Cook Islands, Niue, & Tokelau"
+7,Amsterdam and Saint Paul Islands,1,Southern Africa,France,,
+27,"Bassas da India, Europa Island, & Juan de Nova Island",1,Southeastern Africa,France,,Madagascar; Mozambique
+64,Crozet Islands,1,Southern Africa,France,,
+56,Clipperton Island,0,North America,France,,
+132,Kerguelen Islands,0,Southern Africa,France,,Heard and McDonald Islands
+80,Equatorial Guinea,5,Central Africa,Equatorial Guinea,Cameroon; Gabon,Nigeria; Sao Tome and Principe
+12,Annabon,3,Central Africa,Equatorial Guinea,,Sao Tome and Principe; Gabon
+77,Ecuador,6,South America,Ecuador,Colombia; Peru,
+93,Galapagos Islands,3,North America,Ecuador,,Costa Rica
+69,Denmark,7,Northern Europe,Denmark,Germany,United Kingdom; Norway; Sweden
+35,Bornholm,5,Northern Europe,Denmark,,Sweden; Germany; Poland
+86,Faroe Islands,5,Northern Europe,Denmark,,Iceland; Norway; United Kingdom
+102,Greenland,4,Northern Europe,Denmark,,Canada; Norway; Jan Mayen; Iceland
+53,Chile,7,South America,Chile,Argentina; Bolivia; Peru,
+76,Easter Island,3,Eastern Oceania,Chile,,
+70,Desventuradas Islands,1,South America,Chile,,
+39,Brazil,7,South America,Brazil,Uruguay; Argentina; Paraguay; Bolivia; Peru; Colombia; Venezuela; Guyana; Suriname; French Guiana,
+242,Trindade and Martim Vaz,0,South America,Brazil,,
+20,Azerbaijan,6,Northern Middle East,Azerbaijan,Russia; Georgia; Armenia; Iran,Kazakhstan; Turkmenistan
+171,Nakchivan,4,Northern Middle East,Azerbaijan,Armenia; Turkey; Iran,
+18,Australia,8,Southeast Asia,Australia,,East Timor; Indonesia; Papua New Guinea; New Caledonia; Solomon Islands
+55,Christmas Island,3,Southeast Asia,Australia,,Indonesia
+57,Cocos Islands,3,Southeast Asia,Australia,,
+181,Norfolk Island,3,Western Oceania,Australia,,New Caledonia; New Zealand
+111,Heard and McDonald Islands,0,Southern Africa,Australia,,Kerguelen Islands
+148,Macquarie Island,0,Western Oceania,Australia,,New Zealand
+48,Canada,8,North America,,Alaska; United States,Greenland; Saint Pierre and Miquelon
+54,China,8,East Asia,,North Korea; Russia; Mongolia; Kazakhstan; Kyrgyzstan; Tajikistan; Afghanistan; Pakistan; India; Nepal; Bhutan; Myanmar; Laos; Vietnam,South Korea; Japan; Taiwan
+96,Germany,8,Western Europe,,Denmark; Belgium; Netherlands; Luxembourg; France; Switzerland; Austria; Czechia; Poland,Bornholm; Sweden; United Kingdom
+122,Italy,8,Southern Europe,,France; Switzerland; Austria; Slovenia; Vatican City; San Marino,Spain; Algeria; Tunisia; Malta; Libya; Greece; Albania; Montenegro; Croatia
+215,Saudi Arabia,8,Southern Middle East,,Kuwait; Iraq; Jordan; Yemen; Oman; United Arab Emirates; Qatar,Egypt; The Sudan; Eritrea; Bahrain; Iran
+220,Singapore,8,Southeast Asia,,,Indonesia; West Malaysia
+227,South Korea,8,East Asia,,North Korea,China; Japan
+236,Taiwan,8,East Asia,,,Japan; China; Philippines
+246,Turkey,8,Northern Middle East,,Greece; Bulgaria; Georgia; Armenia; Nakchivan; Iran; Iraq; Syria,Cyprus; Russia; Romania
+5,Algeria,7,Northern Africa,,Morocco; Mauritania; Mali; The Niger; Libya; Tunisia,Italy; Spain
+14,Argentina,7,South America,,Chile; Bolivia; Paraguay; Brazil; Uruguay,Falkland Islands
+19,Austria,7,Eastern Europe,,Czechia; Germany; Switzerland; Liechtenstein; Italy; Slovenia; Slovakia; Hungary,
+25,Bangladesh,7,Central Asia,,India; Myanmar,
+29,Belgium,7,Western Europe,,Netherlands; Germany; Luxembourg; France,United Kingdom
+58,Colombia,7,South America,,Panama; Brazil; Ecuador; Peru; Venezuela,Costa Rica; Nicaragua; Honduras; Jamaica; Haiti; Dominican Republic
+67,Czechia,7,Eastern Europe,,Poland; Germany; Slovakia; Austria,
+78,Egypt,7,Southern Middle East,,Libya; The Sudan; Israel,Greece; Cyprus; Jordan; Saudi Arabia
+88,Finland,7,Northern Europe,,Norway; Sweden; Russia,Estonia
+101,Greece,7,Southern Europe,,Albania; North Macedonia; Bulgaria; Turkey,Italy; Libya; Egypt; Cyprus
+114,Hungary,7,Eastern Europe,,Ukraine; Slovakia; Austria; Slovenia; Croatia; Serbia; Romania,
+117,Indonesia,7,Southeast Asia,,East Malaysia; East Timor; Papua New Guinea,Andaman and Nicobar Islands; Thailand; West Malaysia; Singapore; Vietnam; Philippines; Palau; Australia; Christmas Island
+118,Iran,7,Northern Middle East,,Iraq; Turkey; Nakchivan; Armenia; Azerbaijan; Turkmenistan; Afghanistan; Pakistan,Kuwait; Saudi Arabia; Bahrain; Qatar; United Arab Emirates; Oman; Musandam
+120,Ireland,7,Northern Europe,,United Kingdom,
+121,Israel,7,Southern Middle East,,Egypt; Jordan; Syria; Lebanon,Cyprus
+130,Kazakhstan,7,Central Asia,,Russia; China; Kyrgyzstan; Turkmenistan; Uzbekistan,Azerbaijan
+136,Kuwait,7,Northern Middle East,,Iraq; Saudi Arabia,Iran
+147,Luxembourg,7,Western Europe,,Belgium; Germany; France,
+159,Mexico,7,North America,,United States; Belize; Guatemala,Cuba; Honduras
+186,Pakistan,7,Central Asia,,Iran; Afghanistan; China; India,Oman
+192,Philippines,7,Southeast Asia,,,Taiwan; Japan; East Malaysia; Indonesia; Palau
+195,Poland,7,Eastern Europe,,Germany; Czechia; Slovakia; Ukraine; Belarus; Lithuania; Kaliningrad,Sweden; Bornholm
+199,Qatar,7,Southern Middle East,,Saudi Arabia,Bahrain; United Arab Emirates; Iran
+202,Romania,7,Eastern Europe,,Ukraine; Moldova; Hungary; Serbia; Bulgaria,Russia; Turkey
+221,Slovakia,7,Eastern Europe,,Ukraine; Poland; Czechia; Austria; Hungary,
+233,Sweden,7,Northern Europe,,Norway; Finland,Denmark; Germany; Bornholm; Poland; Kaliningrad; Lithuania; Latvia; Estonia
+234,Switzerland,7,Western Europe,,France; Germany; Austria; Liechtenstein; Italy,
+239,Thailand,7,East Asia,,Myanmar; Laos; Cambodia; West Malaysia,Andaman and Nicobar Islands; Indonesia; Vietnam
+252,United Arab Emirates,7,Southern Middle East,,Saudi Arabia; Oman; Musandam,Iran; Qatar
+260,Vietnam,7,East Asia,,China; Laos; Cambodia,Thailand; West Malaysia; Indonesia
+4,Albania,6,Southern Europe,,Montenegro; Kosovo; North Macedonia; Greece,Italy
+10,Angola,6,Central Africa,,Congo; DR Congo; Zambia; Namibia,
+15,Armenia,6,Northern Middle East,,Georgia; Azerbaijan; Turkey; Nakchivan; Iran,
+23,Bahrain,6,Southern Middle East,,,Qatar; Saudi Arabia; Iran
+28,Belarus,6,Eastern Europe,,Poland; Latvia; Lithuania; Russia; Ukraine,
+34,Bolivia,6,South America,,Brazil; Paraguay; Argentina; Chile; Peru,
+36,Bosnia and Herzegovina,6,Southern Europe,,Croatia; Serbia; Montenegro,
+37,Botswana,6,Southern Africa,,Zambia; Zimbabwe; Namibia; South Africa,
+41,Brunei,6,Southeast Asia,,East Malaysia,
+42,Bulgaria,6,Southern Europe,,Romania; Serbia; North Macedonia; Turkey; Greece,
+46,Cambodia,6,East Asia,,Thailand; Laos; Vietnam,
+61,Costa Rica,6,North America,,Nicaragua; Panama,Colombia; Galapagos Islands
+62,Cote d'Ivoire,6,Western Africa,,Liberia; Rep. Guinea; Mali; Burkina Faso; Ghana,
+63,Croatia,6,Southern Europe,,Slovenia; Hungary; Serbia; Bosnia and Herzegovina; Montenegro,Italy
+65,Cuba,6,Northern Caribbean,,,United States; Mexico; Honduras; Cayman Islands; Jamaica; Haiti; Bahamas
+66,Cyprus,6,Northern Middle East,,Akrotiri and Dhekelia,Turkey; Greece; Egypt; Israel; Lebanon; Syria
+73,Dominican Republic,6,Northern Caribbean,,Haiti,"Turks and Caicos Islands; Puerto Rico & US Virgin Islands; Colombia; Venezuela; Aruba, Bonaire, & Curacao"
+79,El Salvador,6,North America,,Guatemala; Honduras,Nicaragua
+82,Estonia,6,Northern Europe,,Russia; Latvia,Finland; Sweden
+84,Ethiopia,6,Northern Africa,,Eritrea; Djibouti; Somalia; Kenya; South Sudan; The Sudan,
+95,Georgia,6,Northern Middle East,,Russia; Azerbaijan; Armenia; Turkey,
+97,Ghana,6,Western Africa,,Cote d'Ivoire; Burkina Faso; Togo,
+105,Guatemala,6,North America,,Mexico; Belize; Honduras; El Salvador,
+108,Guyana,6,Southern Caribbean,,Brazil; Suriname; Venezuela,Barbados; Trinidad and Tobago
+115,Iceland,6,Northern Europe,,,Greenland; Jan Mayen; Faroe Islands; United Kingdom
+119,Iraq,6,Northern Middle East,,Kuwait; Saudi Arabia; Jordan; Syria; Turkey; Iran,
+128,Jordan,6,Southern Middle East,,Israel; Syria; Iraq; Saudi Arabia,Egypt
+131,Kenya,6,Northern Africa,,Tanzania; Uganda; South Sudan; Ethiopia; Somalia,
+139,Latvia,6,Northern Europe,,Estonia; Russia; Belarus; Lithuania,Sweden
+140,Lebanon,6,Northern Middle East,,Syria; Israel,Cyprus
+143,Libya,6,Northern Africa,,Tunisia; Algeria; The Niger; Chad; The Sudan; Egypt,Malta; Italy; Greece
+146,Lithuania,6,Eastern Europe,,Kaliningrad; Poland; Belarus; Latvia,Sweden
+154,Malta,6,Northern Africa,,,Italy; Tunisia; Libya
+158,Mauritius,6,Southeastern Africa,,,Reunion & Tromelin Island; Seychelles
+167,Morocco,6,Western Africa,,Spain; Algeria; Mauritania,Portugal; Madeira; Canary Islands
+170,Myanmar,6,East Asia,,Bangladesh; India; China; Laos; Thailand,Andaman and Nicobar Islands
+180,Nigeria,6,Central Africa,,Benin; Cameroon; Chad; The Niger,Equatorial Guinea; Sao Tome and Principe
+183,North Macedonia,6,Southern Europe,,Serbia; Kosovo; Albania; Greece; Bulgaria,
+188,Panama,6,North America,,Costa Rica; Colombia,
+190,Paraguay,6,South America,,Argentina; Brazil; Bolivia,
+191,Peru,6,South America,,Chile; Bolivia; Brazil; Ecuador; Colombia,
+217,Serbia,6,Southern Europe,,Hungary; Croatia; Bosnia and Herzegovina; Montenegro; Kosovo; North Macedonia; Bulgaria; Romania,
+222,Slovenia,6,Southern Europe,,Italy; Austria; Croatia; Hungary,
+230,Sri Lanka,6,Central Asia,,,India; Maldives
+243,Trinidad and Tobago,6,Southern Caribbean,,,Barbados; Saint Vincent and the Grenadines; Grenada; Venezuela; Guyana
+245,Tunisia,6,Northern Africa,,Algeria; Libya,Malta; Italy
+247,Turkmenistan,6,Northern Middle East,,Kazakhstan; Uzbekistan; Afghanistan; Iran,Azerbaijan
+251,Ukraine,6,Eastern Europe,,Russia; Belarus; Poland; Slovakia; Hungary; Romania; Moldova,
+255,Uruguay,6,South America,,Brazil; Argentina,
+256,Uzbekistan,6,Central Asia,,Kazakhstan; Turkmenistan; Afghanistan; Tajikistan; Kyrgyzstan,
+259,Venezuela,6,Southern Caribbean,,Colombia; Brazil; Guyana,"Dominican Republic; Aruba, Bonaire, & Curacao; Puerto Rico & US Virgin Islands; Saba, Sint Eustatius, & Sint Maarten; Saint Kitts and Nevis; Montserrat; Saint Lucia; Guadeloupe & Martinique; Dominica; Saint Vincent and the Grenadines; Grenada; Trinidad and Tobago"
+1,Afghanistan,5,Central Asia,,Iran; Pakistan; China; Tajikistan; Uzbekistan; Turkmenistan,
+9,Andorra,5,Western Europe,,France; Spain,
+22,Bahamas,5,Northern Caribbean,,,United States; Cuba; Turks and Caicos Islands; Haiti
+26,Barbados,5,Southern Caribbean,,,Guadeloupe & Martinique; Saint Lucia; Saint Vincent and the Grenadines; Trinidad and Tobago; Guyana
+31,Benin,5,Central Africa,,Burkina Faso; The Niger; Nigeria; Togo,
+33,Bhutan,5,Central Asia,,China; India,
+43,Burkina Faso,5,Northern Africa,,The Niger; Mali; Cote d'Ivoire; Ghana; Togo; Benin,
+47,Cameroon,5,Central Africa,,Chad; Nigeria; Gabon; Equatorial Guinea; Central African Republic; Congo,
+52,Chad,5,Northern Africa,,Libya; The Niger; Nigeria; Cameroon; Central African Republic; The Sudan,
+68,DR Congo,5,Central Africa,,Congo; Angola; Central African Republic; Zambia; Burundi; Rwanda; Uganda; South Sudan,Tanzania
+83,Eswatini,5,Southern Africa,,South Africa; Mozambique,
+87,Fiji,5,Western Oceania,,,Solomon Islands; Vanuatu; New Caledonia; Tuvalu; Tonga; Wallis and Futuna
+92,Gabon,5,Central Africa,,Equatorial Guinea; Cameroon; Congo,Annabon; Sao Tome and Principe
+106,Rep. Guinea,5,Western Africa,,Guinea-Bissau; Senegal; Mali; Cote d'Ivoire; Liberia; Sierra Leone,
+109,Haiti,5,Northern Caribbean,,Dominican Republic,Turks and Caicos Islands; Bahamas; Cuba; Jamaica; Colombia
+112,Honduras,5,North America,,Guatemala; El Salvador; Nicaragua,Belize; Mexico; Cuba; Cayman Islands; Jamaica; Colombia
+123,Jamaica,5,Northern Caribbean,,,Cuba; Cayman Islands; Honduras; Colombia; Haiti
+135,Kosovo,5,Southern Europe,,Serbia; Montenegro; Albania; North Macedonia,
+137,Kyrgyzstan,5,Central Asia,,Kazakhstan; Uzbekistan; Tajikistan; China,
+138,Laos,5,East Asia,,China; Vietnam; Cambodia; Thailand; Myanmar,
+144,Liechtenstein,5,Western Europe,,Switzerland; Austria,
+149,Madagascar,5,Southeastern Africa,,,"Reunion & Tromelin Island; Seychelles; Comoros; Glorioso Islands & Mayotte; Mozambique; Bassas da India, Europa Island, & Juan de Nova Island"
+152,Maldives,5,Central Asia,,,India; British Indian Ocean Territory; Sri Lanka
+153,Mali,5,Northern Africa,,Algeria; Mauritania; Senegal; Rep. Guinea; Cote d'Ivoire; Burkina Faso; The Niger,
+157,Mauritania,5,Western Africa,,Morocco; Algeria; Mali; Senegal,Cabo Verde
+162,Moldova,5,Eastern Europe,,Ukraine; Romania,
+163,Monaco,5,Western Europe,,France,
+164,Mongolia,5,East Asia,,China; Russia,
+165,Montenegro,5,Southern Europe,,Croatia; Bosnia and Herzegovina; Serbia; Kosovo; Albania,Italy
+172,Namibia,5,Southern Africa,,Angola; Zambia; Botswana; South Africa,
+174,Nepal,5,Central Asia,,China; India,
+178,Nicaragua,5,North America,,Honduras; Costa Rica,Colombia; El Salvador
+182,North Korea,5,East Asia,,China; Russia; South Korea,Japan
+189,Papua New Guinea,5,Southeast Asia,,Indonesia,Australia; Solomon Islands; Micronesia
+200,Congo,5,Central Africa,,Cameroon; Central African Republic; DR Congo; Angola; Gabon,
+204,Rwanda,5,Southeastern Africa,,Uganda; Tanzania; Burundi; DR Congo,
+213,San Marino,5,Southern Europe,,Italy,
+216,Senegal,5,Western Africa,,Mauritania; Mali; Rep. Guinea; Guinea-Bissau; Gambia,Cabo Verde
+218,Seychelles,5,Southeastern Africa,,,Tanzania; Comoros; Madagascar; Glorioso Islands & Mayotte; Reunion & Tromelin Island; Mauritius
+231,The Sudan,5,Northern Africa,,Egypt; Libya; Chad; Central African Republic; South Sudan; Ethiopia; Eritrea,Saudi Arabia
+232,Suriname,5,Southern Caribbean,,French Guiana; Guyana; Brazil,
+235,Syria,5,Northern Middle East,,Turkey; Iraq; Jordan; Israel; Lebanon,Cyprus
+237,Tajikistan,5,Central Asia,,Kyrgyzstan; Uzbekistan; Afghanistan; China,
+238,Tanzania,5,Southeastern Africa,,Kenya; Uganda; Rwanda; Burundi; Zambia; Malawi; Mozambique,Seychelles; Comoros; DR Congo
+250,Uganda,5,Northern Africa,,South Sudan; DR Congo; Rwanda; Tanzania; Kenya,
+264,Yemen,5,Southern Middle East,,Saudi Arabia; Oman,Djibouti; Eritrea; Somalia
+265,Zambia,5,Southeastern Africa,,Tanzania; DR Congo; Angola; Botswana; Namibia; Zimbabwe; Mozambique; Malawi,
+266,Zimbabwe,5,Southern Africa,,Mozambique; South Africa; Botswana; Zambia,
+13,Antigua and Barbuda,4,Southern Caribbean,,,Saint Barthelemy & Saint Martin; Anguilla & British Virgin Islands; Saint Kitts and Nevis; Montserrat; Guadeloupe & Martinique
+30,Belize,4,North America,,Guatemala; Mexico,Honduras
+44,Burundi,4,Southeastern Africa,,Rwanda; Tanzania; DR Congo,
+45,Cabo Verde,4,Western Africa,,,Mauritania; Senegal; Gambia
+59,Comoros,4,Southeastern Africa,,,Mozambique; Tanzania; Seychelles; Madagascar; Glorioso Islands & Mayotte
+71,Djibouti,4,Southern Middle East,,Eritrea; Ethiopia; Somalia,Yemen
+72,Dominica,4,Southern Caribbean,,,Guadeloupe & Martinique; Venezuela
+75,East Timor,4,Southeast Asia,,Indonesia,Australia
+81,Eritrea,4,Southern Middle East,,The Sudan; Ethiopia; Djibouti,Yemen; Saudi Arabia
+94,Gambia,4,Western Africa,,Senegal,Cabo Verde
+103,Grenada,4,Southern Caribbean,,,Saint Vincent and the Grenadines; Trinidad and Tobago; Venezuela
+107,Guinea-Bissau,4,Western Africa,,Senegal; Rep. Guinea,
+141,Lesotho,4,Southern Africa,,South Africa,
+142,Liberia,4,Western Africa,,Sierra Leone; Rep. Guinea; Cote d'Ivoire,
+151,Malawi,4,Southeastern Africa,,Tanzania; Zambia; Mozambique,
+168,Mozambique,4,Southeastern Africa,,Tanzania; Malawi; Zambia; Zimbabwe; Eswatini; South Africa,"Madagascar; Comoros; Bassas da India, Europa Island, & Juan de Nova Island"
+179,The Niger,4,Northern Africa,,Algeria; Libya; Chad; Nigeria; Benin; Burkina Faso; Mali,
+208,Saint Kitts and Nevis,4,Northern Caribbean,,,"Saint Barthelemy & Saint Martin; Saba, Sint Eustatius, & Sint Maarten; Antigua and Barbuda; Montserrat; Venezuela"
+209,Saint Lucia,4,Southern Caribbean,,,Guadeloupe & Martinique; Saint Vincent and the Grenadines; Barbados; Venezuela
+211,Saint Vincent and the Grenadines,4,Southern Caribbean,,,Barbados; Saint Lucia; Venezuela; Grenada; Trinidad and Tobago
+219,Sierra Leone,4,Western Africa,,Rep. Guinea; Liberia,
+224,Somalia,4,Southern Middle East,,Kenya; Ethiopia; Djibouti,Yemen
+240,Togo,4,Western Africa,,Benin; Burkina Faso; Ghana,
+51,Central African Republic,3,Central Africa,,The Sudan; DR Congo; Congo; Cameroon; Chad; South Sudan,
+156,Marshall Islands,3,Western Oceania,,,Wake Island; Micronesia; Nauru; Gilbert Islands
+160,Micronesia,3,Southeast Asia,,,Marshall Islands; Palau; Mariana Islands; Papua New Guinea
+173,Nauru,3,Western Oceania,,,Marshall Islands; Gilbert Islands
+187,Palau,3,Southeast Asia,,,Philippines; Indonesia; Micronesia
+212,Samoa,3,Eastern Oceania,,,"Cook Islands, Niue, & Tokelau; American Samoa; Wallis and Futuna; Tonga"
+214,Sao Tome and Principe,3,Central Africa,,,Annabon; Equatorial Guinea; Gabon; Nigeria
+223,Solomon Islands,3,Western Oceania,,,Papua New Guinea; Australia; New Caledonia; Vanuatu; Fiji
+228,South Sudan,3,Northern Africa,,The Sudan; Ethiopia; Kenya; Uganda; DR Congo; Central African Republic,
+241,Tonga,3,Eastern Oceania,,,"Fiji; Wallis and Futuna; Samoa; American Samoa; Cook Islands, Niue, & Tokelau"
+257,Vanuatu,3,Western Oceania,,,Solomon Islands; New Caledonia; Fiji
+249,Tuvalu,2,Western Oceania,,,Gilbert Islands; Wallis and Futuna; Fiji
+258,Vatican City,2,Southern Europe,,Italy,

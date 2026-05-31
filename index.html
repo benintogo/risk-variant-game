@@ -1,0 +1,229 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Risk Variant Moderator</title>
+    <link rel="stylesheet" href="styles.css">
+  </head>
+  <body>
+    <header class="topbar">
+      <div>
+        <h1>Risk Variant Moderator</h1>
+        <p id="statusLine">Loading map data...</p>
+      </div>
+      <div class="top-actions">
+        <button id="saveButton" type="button">Save</button>
+        <button id="resetButton" type="button" class="danger">Reset</button>
+      </div>
+    </header>
+
+    <main>
+      <section id="setupView" class="panel">
+        <h2>New Game</h2>
+        <div class="setup-row">
+          <label>
+            Number of players
+            <input id="playerCount" type="number" min="2" max="20" value="4">
+          </label>
+          <button id="makeNamesButton" type="button">Set Names</button>
+        </div>
+        <div id="playerNames" class="name-grid"></div>
+        <button id="startGameButton" type="button" class="primary">Start Game</button>
+      </section>
+
+      <section id="gameView" class="hidden">
+        <nav class="tabs" aria-label="Views">
+          <button class="tab active" type="button" data-tab="moderator">Moderator</button>
+          <button class="tab" type="button" data-tab="planning">Round Planning</button>
+          <button class="tab" type="button" data-tab="turn">Turn Actions</button>
+          <button class="tab" type="button" data-tab="log">Log</button>
+        </nav>
+
+        <section id="moderatorTab" class="tab-view">
+          <div class="summary-grid" id="summaryGrid"></div>
+          <div class="panel world-map-panel">
+            <div class="panel-header">
+              <h2>World Map</h2>
+            </div>
+            <div class="map-layout moderator-map-layout">
+              <div class="map-shell" style="width: calc(100vw - 86px); max-width: none;">
+                <button id="resetModeratorMapButton" type="button" class="map-reset">Reset Map</button>
+                <svg id="moderatorMap" viewBox="0 0 1000 500" role="img" aria-label="Full information world map" style="width: 100%;"></svg>
+                <aside id="moderatorMapDetails" class="map-details map-details-inset" style="position: absolute; top: 58px; right: 14px; z-index: 3; width: 280px; max-height: 300px; overflow: auto;">
+                  <strong>World Map</strong>
+                  <p>Select a country on the map to see its full information.</p>
+                </aside>
+              </div>
+            </div>
+          </div>
+          <div id="timelinePanel" class="panel world-map-panel hidden">
+            <div class="panel-header">
+              <h2>Endgame Timeline</h2>
+              <span id="timelineLabel" class="badge"></span>
+            </div>
+            <div class="map-layout moderator-map-layout">
+              <div class="map-shell" style="width: calc(100vw - 86px); max-width: none;">
+                <svg id="timelineMap" viewBox="0 0 1000 500" role="img" aria-label="Historical world map" style="width: 100%;"></svg>
+                <div class="timeline-controls">
+                  <input id="timelineSlider" type="range" min="0" max="0" value="0">
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="panel">
+            <div class="panel-header">
+              <h2>Board</h2>
+              <input id="boardSearch" type="search" placeholder="Search countries">
+            </div>
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Country</th>
+                    <th>Region</th>
+                    <th>Network</th>
+                    <th>Magnitude</th>
+                    <th>Owner</th>
+                    <th>Troops</th>
+                  </tr>
+                  <tr class="filter-row">
+                    <th><input id="filterCountry" type="search" placeholder="Filter country"></th>
+                    <th><input id="filterRegion" type="search" placeholder="Filter region"></th>
+                    <th><input id="filterNetwork" type="search" placeholder="Filter network"></th>
+                    <th><input id="filterMagnitude" type="search" placeholder="Filter magnitude"></th>
+                    <th><input id="filterOwner" type="search" placeholder="Filter owner"></th>
+                    <th><input id="filterTroops" type="search" placeholder="Filter troops"></th>
+                  </tr>
+                </thead>
+                <tbody id="boardRows"></tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+        <section id="planningTab" class="tab-view hidden">
+          <div class="panel">
+            <div class="panel-header">
+              <h2>Beginning of Round</h2>
+            </div>
+            <p class="note">Recruits are calculated automatically. Place any available recruits, then begin turns.</p>
+            <div id="incomeRows" class="income-grid"></div>
+          </div>
+
+          <form id="placeForm" class="panel">
+            <h3>Place Recruits</h3>
+            <label>Player <select id="placePlayer"></select></label>
+            <label>Country <select id="placeCountry"></select></label>
+            <label>Troops <input id="placeAmount" type="number" min="1" value="1"></label>
+            <button type="submit" class="primary">Place</button>
+          </form>
+
+          <div class="panel player-map-panel">
+            <div class="panel-header">
+              <h2>Recruit Player Map</h2>
+              <span id="planningVisiblePlayerLabel" class="badge"></span>
+            </div>
+            <div class="map-layout player-map-layout">
+              <div class="map-shell" style="width: calc(100vw - 86px); max-width: none;">
+                <svg id="planningPlayerMap" viewBox="0 0 1000 500" role="img" aria-label="Recruit player's visible countries on the world map" style="width: 100%;"></svg>
+                <aside id="planningMapDetails" class="map-details map-details-inset" style="position: absolute; top: 58px; right: 14px; z-index: 3; width: 280px; max-height: 300px; overflow: auto;">
+                  <strong>Visible Map</strong>
+                  <p>Select a country on the map to see the information this player is allowed to know.</p>
+                </aside>
+              </div>
+            </div>
+            <div id="planningUnmappedVisible" class="unmapped-list"></div>
+          </div>
+
+          <div class="panel">
+            <div class="panel-header">
+              <h3>Ready</h3>
+              <button id="resolvePlanningButton" type="button" class="primary">Begin Turns</button>
+            </div>
+          </div>
+        </section>
+
+        <section id="turnTab" class="tab-view hidden">
+          <div class="panel">
+            <div class="panel-header">
+              <h2 id="turnTitle">Turn</h2>
+              <div class="top-actions">
+                <button id="finishAttackButton" type="button">Finished Attacking</button>
+                <button id="endTurnButton" type="button" class="primary">End Turn & Roll Round End</button>
+              </div>
+            </div>
+            <p class="note" id="turnNote"></p>
+          </div>
+
+          <div id="attackSection" class="two-col">
+            <form id="claimForm" class="panel">
+              <h3>Claim Unowned Country</h3>
+              <label>From <select id="claimFrom"></select></label>
+              <label>Country <select id="claimTo"></select></label>
+              <label>Troops <input id="claimAmount" type="number" min="1" value="1"></label>
+              <button type="submit" class="primary">Claim</button>
+            </form>
+
+            <form id="attackForm" class="panel">
+              <h3>Attack</h3>
+              <label>From <select id="attackFrom"></select></label>
+              <label>Target <select id="attackTo"></select></label>
+              <label>Attack dice <select id="attackDice"></select></label>
+              <label>Move on conquest <input id="conquestMove" type="number" min="1" value="1"></label>
+              <button type="submit" class="primary">Attack</button>
+            </form>
+          </div>
+
+          <div id="transferSection" class="two-col hidden">
+            <form id="transferForm" class="panel">
+              <h3>Transfer Troops</h3>
+              <label>From <select id="transferFrom"></select></label>
+              <label>To <select id="transferTo"></select></label>
+              <label>Troops <input id="transferAmount" type="number" min="1" value="1"></label>
+              <button type="submit" class="primary">Transfer</button>
+            </form>
+
+            <div class="panel">
+              <div class="panel-header">
+                <h3>Transfer Status</h3>
+              </div>
+              <div id="transferQueue" class="stack"></div>
+            </div>
+          </div>
+
+          <div class="panel player-map-panel">
+            <div class="panel-header">
+              <h2>Player Map</h2>
+              <span id="visiblePlayerLabel" class="badge"></span>
+              <select id="visiblePlayer" class="hidden"></select>
+            </div>
+            <div class="map-layout player-map-layout">
+              <div class="map-shell" style="width: calc(100vw - 86px); max-width: none;">
+                <button id="resetMapButton" type="button" class="map-reset">Reset Map</button>
+                <svg id="playerMap" viewBox="0 0 1000 500" role="img" aria-label="Visible countries on the world map" style="width: 100%;"></svg>
+                <aside id="mapDetails" class="map-details map-details-inset" style="position: absolute; top: 58px; right: 14px; z-index: 3; width: 280px; max-height: 300px; overflow: auto;">
+                  <strong>Visible Map</strong>
+                  <p>Select a country on the map to see the information this player is allowed to know.</p>
+                </aside>
+              </div>
+            </div>
+            <div id="unmappedVisible" class="unmapped-list"></div>
+          </div>
+        </section>
+
+        <section id="logTab" class="tab-view hidden">
+          <div class="panel">
+            <div class="panel-header">
+              <h2>Roll & Game Log</h2>
+              <button id="clearLogButton" type="button">Clear Log</button>
+            </div>
+            <ol id="logList" class="log-list"></ol>
+          </div>
+        </section>
+      </section>
+    </main>
+
+    <script src="app.js?v=20260530-interactive-planning-map-1"></script>
+  </body>
+</html>
