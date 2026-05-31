@@ -397,7 +397,32 @@ function movableTroops(name) {
 
 function addLog(message) {
   const stamp = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
-  game.log.push(`${stamp} - ${message}`);
+  game.log.push({
+    time: stamp,
+    message,
+    visibleTo: null
+  });
+}
+
+function addPrivateLog(message, playerIds) {
+  const stamp = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+  const visibleTo = [...new Set((playerIds || []).filter(Boolean))];
+  game.log.push({
+    time: stamp,
+    message,
+    visibleTo
+  });
+}
+
+function logText(entry) {
+  if (typeof entry === "string") return entry;
+  return `${entry.time} - ${entry.message}`;
+}
+
+function canSeeLogEntry(entry) {
+  if (typeof entry === "string") return true;
+  if (!entry.visibleTo) return true;
+  return entry.visibleTo.includes(sessionPlayerId);
 }
 
 function shuffled(items) {
@@ -424,7 +449,7 @@ function startGame(names) {
     const country = starts[index];
     setCountryOwner(country.name, player.id);
     game.troops[country.name] = 10;
-    addLog(`${player.name} starts in ${country.name} with 10 troops.`);
+    addPrivateLog(`${player.name} starts in ${country.name} with 10 troops.`, [player.id]);
   });
   game.phase = "turn";
   game.incomeCalculatedRound = 1;
@@ -747,7 +772,7 @@ function announceNewRegionControls(playerId) {
     const key = `${playerId}|${region}`;
     if (game.regionControlAnnouncements[key]) continue;
     game.regionControlAnnouncements[key] = true;
-    addLog(`${player.name} now controls all countries in ${region}.`);
+    addPrivateLog(`${player.name} now controls all countries in ${region}.`, [player.id]);
   }
 }
 
@@ -763,7 +788,7 @@ function calculateRecruits() {
     const bonus = regions.reduce((sum, region) => sum + (REGION_BONUSES[region] || 0), 0);
     player.reserve += base + bonus;
     totalAwarded += base + bonus;
-    addLog(`${player.name} receives ${base} recruits from magnitude, ${bonus} from regions, and carries ${player.carry.toFixed(2)}.`);
+    addPrivateLog(`${player.name} receives ${base} recruits from magnitude, ${bonus} from regions, and carries ${player.carry.toFixed(2)}.`, [player.id]);
   }
   game.incomeCalculatedRound = game.round;
   return totalAwarded;
@@ -973,13 +998,13 @@ function applyNuclearStrike({ sourceName, fromPlayerId, targetPlayerId, automati
   if (!automatic) {
     const proceed = confirm(`${sourcePlayer.name} may counter-retaliate with ${sourceName} against ${targetPlayer.name}. Do this?`);
     if (!proceed) {
-      addLog(`${sourcePlayer.name} declines to counter-retaliate with ${sourceName}.`);
+      addPrivateLog(`${sourcePlayer.name} declines to counter-retaliate with ${sourceName}.`, [fromPlayerId, targetPlayerId]);
       return;
     }
   }
   const amount = Math.max(0, sourceCountry.magnitude || 0);
   const result = applyOrderedTroopLoss(targetPlayerId, amount);
-  addLog(`${sourcePlayer.name} retaliates with ${sourceName} against ${targetPlayer.name}'s countries by nuclear loss order; ${result.lost}/${amount} troops lost: ${describeLossResult(result)}.`);
+  addPrivateLog(`${sourcePlayer.name} retaliates with ${sourceName} against ${targetPlayer.name}'s countries by nuclear loss order; ${result.lost}/${amount} troops lost: ${describeLossResult(result)}.`, [fromPlayerId, targetPlayerId]);
   for (const hitNuclear of result.nuclearSources) {
     applyNuclearStrike({
       sourceName: hitNuclear.name,
@@ -1001,13 +1026,13 @@ function applyNuclearRetaliation({ targetName, actorId, defenderId = null, exclu
   if (defenderId && defenderId !== actorId && defender) {
     const proceed = confirm(`${defender.name} may use nuclear retaliation from ${targetName} against ${actor.name}. Do this?`);
     if (!proceed) {
-      addLog(`${defender.name} declines nuclear retaliation from ${targetName}.`);
+      addPrivateLog(`${defender.name} declines nuclear retaliation from ${targetName}.`, [defenderId, actorId]);
       return;
     }
   }
   const amount = Math.max(0, targetCountry.magnitude || 0);
   const result = applyOrderedTroopLoss(actorId, amount, excludeCountry);
-  addLog(`${actor.name} ${action} nuclear power ${targetName}; retaliation follows the nuclear loss order and costs ${result.lost}/${amount} troops: ${describeLossResult(result)}.`);
+  addPrivateLog(`${actor.name} ${action} nuclear power ${targetName}; retaliation follows the nuclear loss order and costs ${result.lost}/${amount} troops: ${describeLossResult(result)}.`, [actorId, defenderId]);
 
   if (!defenderId || defenderId === actorId) return;
   for (const nuclearCountry of result.nuclearSources) {
@@ -1032,7 +1057,7 @@ function resolveAntarcticaUnclaimedTroops() {
   const leader = leaders[0].player;
   game.antarcticaTroops[leader.id] = antarcticaTroops(leader.id) + unclaimed;
   game.antarcticaUnclaimed = 0;
-  addLog(`${leader.name} receives ${unclaimed} unclaimed troops in Antarctica.`);
+  addPrivateLog(`${leader.name} receives ${unclaimed} unclaimed troops in Antarctica.`, [leader.id]);
 }
 
 function concludeGameIfWon() {
@@ -2036,7 +2061,10 @@ function renderTimelineMap() {
 }
 
 function renderLog() {
-  $("logList").innerHTML = game.log.map((item) => `<li>${item}</li>`).join("");
+  $("logList").innerHTML = game.log
+    .filter(canSeeLogEntry)
+    .map((item) => `<li>${logText(item)}</li>`)
+    .join("");
 }
 
 function canOpenTab(name) {
@@ -2303,7 +2331,7 @@ function handleAttack(event) {
   }
   game.troops[from] -= attackerLoss;
   game.troops[target] -= defenderLoss;
-  addLog(`${attacker.name} attacks ${target} from ${from}. Attack rolls ${attackRolls.join(", ")}; defense rolls ${defendRolls.join(", ")}. Losses: ${attackerLoss} attacker, ${defenderLoss} defender.`);
+  addPrivateLog(`${attacker.name} attacks ${target} from ${from}. Attack rolls ${attackRolls.join(", ")}; defense rolls ${defendRolls.join(", ")}. Losses: ${attackerLoss} attacker, ${defenderLoss} defender.`, [attacker.id, defenderId]);
   let conquered = false;
   if (countryTroops(target) <= 0) {
     const requestedMove = Number($("conquestMove").value || attackDice);
@@ -2312,7 +2340,7 @@ function handleAttack(event) {
     game.troops[target] = move;
     game.troops[from] -= move;
     conquered = true;
-    addLog(`${attacker.name} conquers ${target} from ${playerName(defenderId)} and moves ${move} troops in.`);
+    addPrivateLog(`${attacker.name} conquers ${target} from ${playerName(defenderId)} and moves ${move} troops in.`, [attacker.id, defenderId]);
     announceNewRegionControls(attacker.id);
   }
   if (targetIsNuclear) {
@@ -2340,16 +2368,16 @@ function handleLimitedAttack(attacker, from, target) {
     const movable = countryTroops(from) - 1;
     if (requestedMove > movable) {
       alert("The starting country does not have enough movable troops.");
-      addLog(`${attacker.name} probes ${target} from ${from}. The starting country does not have enough movable troops.`);
+      addPrivateLog(`${attacker.name} probes ${target} from ${from}. The starting country does not have enough movable troops.`, [attacker.id]);
     } else if (requestedMove < minimumMove) {
       alert("Move on conquest is not high enough.");
-      addLog(`${attacker.name} probes ${target} from ${from}. Move on conquest is not high enough.`);
+      addPrivateLog(`${attacker.name} probes ${target} from ${from}. Move on conquest is not high enough.`, [attacker.id]);
     } else {
       markTurnAction();
       setCountryOwner(target, attacker.id);
       game.troops[target] = requestedMove;
       game.troops[from] -= requestedMove;
-      addLog(`${attacker.name} probes ${target} from ${from}, finds it unowned, and claims it with ${requestedMove} troops.`);
+      addPrivateLog(`${attacker.name} probes ${target} from ${from}, finds it unowned, and claims it with ${requestedMove} troops.`, [attacker.id]);
       announceNewRegionControls(attacker.id);
       if (targetIsNuclear) {
         applyNuclearRetaliation({
@@ -2374,7 +2402,7 @@ function handleLimitedAttack(attacker, from, target) {
   let conquered = false;
   if (attackerLoses) {
     game.troops[from] -= 1;
-    addLog(`${attacker.name} probes ${target} from ${from}. One attacking troop dies.`);
+    addPrivateLog(`${attacker.name} probes ${target} from ${from}. One attacking troop dies.`, [attacker.id, defenderId]);
   } else {
     game.troops[target] -= 1;
     if (countryTroops(target) <= 0) {
@@ -2384,10 +2412,10 @@ function handleLimitedAttack(attacker, from, target) {
       game.troops[target] = move;
       game.troops[from] -= move;
       conquered = true;
-      addLog(`${attacker.name} probes ${target} from ${from}, conquers it, and moves ${move} troops in.`);
+      addPrivateLog(`${attacker.name} probes ${target} from ${from}, conquers it, and moves ${move} troops in.`, [attacker.id, defenderId]);
       announceNewRegionControls(attacker.id);
     } else {
-      addLog(`${attacker.name} probes ${target} from ${from}. No visible result.`);
+      addPrivateLog(`${attacker.name} probes ${target} from ${from}. No visible result.`, [attacker.id]);
     }
   }
   if (targetIsNuclear) {
@@ -2498,7 +2526,7 @@ function bindEvents() {
     } else {
       game.troops[country] = countryTroops(country) + amount;
     }
-    addLog(`${player.name} places ${amount} recruits in ${country}.`);
+    addPrivateLog(`${player.name} places ${amount} recruits in ${country}.`, [player.id]);
     if (game.phase === "planning" && player.reserve <= 0) advancePlanningPlayer();
     saveGame();
     render();
@@ -2526,7 +2554,7 @@ function bindEvents() {
       game.troops[from] -= amount;
       game.troops[to] = countryTroops(to) + amount;
     }
-    addLog(`${player.name} transfers ${amount} from ${from} to ${to}.`);
+    addPrivateLog(`${player.name} transfers ${amount} from ${from} to ${to}.`, [player.id]);
     resolveAntarcticaUnclaimedTroops();
     saveGame();
     render();
@@ -2556,7 +2584,7 @@ function bindEvents() {
     game.troops[from] -= amount;
     setCountryOwner(target, player.id);
     game.troops[target] = amount;
-    addLog(`${player.name} claims ${target} from ${from} with ${amount} troops.`);
+    addPrivateLog(`${player.name} claims ${target} from ${from} with ${amount} troops.`, [player.id]);
     announceNewRegionControls(player.id);
     if (targetIsNuclear) {
       applyNuclearRetaliation({
@@ -2601,11 +2629,6 @@ function bindEvents() {
     if (game.phase === "turn") resetMapView(false);
     saveGame();
     render();
-  });
-  $("clearLogButton").addEventListener("click", () => {
-    game.log = [];
-    saveGame();
-    renderLog();
   });
   $("timelineSlider").addEventListener("input", () => {
     if (!game) return;
