@@ -2,6 +2,8 @@ const DATA_URL = "data/risk-places.csv";
 const MAP_URL = "data/world-map.json?v=20260519-portugal-crimea-1";
 const SAVE_KEY = "risk-variant-moderator-v1";
 const ONLINE_GAME_ID_KEY = "risk-variant-online-game-id";
+const SESSION_ROLE_KEY = "risk-variant-session-role";
+const SESSION_PLAYER_KEY = "risk-variant-session-player-id";
 
 const REGION_BONUSES = {
   "Eastern Europe": 11,
@@ -117,6 +119,8 @@ let onlineSaveTimer = null;
 let onlineSaveInFlight = false;
 let onlineSaveQueued = false;
 let setupMode = false;
+let sessionRole = localStorage.getItem(SESSION_ROLE_KEY) || "moderator";
+let sessionPlayerId = localStorage.getItem(SESSION_PLAYER_KEY) || "";
 
 const MAP_MIN_SCALE = 145;
 const PLAYER_MAP_MAX_SCALE = 7200;
@@ -429,6 +433,7 @@ function startGame(names) {
   game.consecutivePasses = [];
   addLog("Round 1 begins with action turns. Initial planning is skipped.");
   recordTurnSnapshot("Initial setup");
+  setSession("moderator");
   resetMapView(false);
   saveGame();
   showTab("turn");
@@ -527,6 +532,11 @@ function rememberOnlineGameId(id) {
   if ($("activeOnlineGameId")) $("activeOnlineGameId").value = onlineGameId;
 }
 
+function updateJoinRoleFields() {
+  const isPlayer = $("joinRole")?.value === "player";
+  $("joinPlayerNameLabel")?.classList.toggle("hidden", !isPlayer);
+}
+
 function queueOnlineSave() {
   if (!onlineClient || !onlineGameId || !game) return;
   clearTimeout(onlineSaveTimer);
@@ -584,8 +594,24 @@ async function loadOnlineGame(id) {
   }
   game = data[stateColumn];
   normalizeLoadedGame();
+  const requestedRole = $("joinRole")?.value || "moderator";
+  if (requestedRole === "player") {
+    const requestedName = ($("joinPlayerName")?.value || "").trim().toLowerCase();
+    const player = game.players.find((candidate) => candidate.name.toLowerCase() === requestedName);
+    if (!player) {
+      const names = game.players.map((candidate) => candidate.name).join(", ");
+      game = null;
+      alert(`That player name was not found. Available players: ${names}`);
+      render();
+      return;
+    }
+    setSession("player", player.id);
+  } else {
+    setSession("moderator");
+  }
   setupMode = false;
   rememberOnlineGameId(requestedId);
+  resetMapView(false);
   saveLocalGame();
   setOnlineStatus(`Loaded latest online game ${requestedId} at ${onlineTimestamp()}.`);
   render();
@@ -798,6 +824,32 @@ function currentPlayer() {
   if (!players.length) return null;
   game.turnPointer = Math.min(game.turnPointer, players.length - 1);
   return players[game.turnPointer];
+}
+
+function sessionPlayer() {
+  if (!game || sessionRole !== "player") return null;
+  return game.players.find((player) => player.id === sessionPlayerId) || null;
+}
+
+function visibleSessionPlayer() {
+  return sessionPlayer() || currentPlayer();
+}
+
+function isPlayerSession() {
+  return sessionRole === "player";
+}
+
+function playerSessionCanAct() {
+  if (!isPlayerSession()) return true;
+  return currentPlayer()?.id === sessionPlayerId;
+}
+
+function setSession(role, playerId = "") {
+  sessionRole = role === "player" ? "player" : "moderator";
+  sessionPlayerId = sessionRole === "player" ? playerId : "";
+  localStorage.setItem(SESSION_ROLE_KEY, sessionRole);
+  if (sessionPlayerId) localStorage.setItem(SESSION_PLAYER_KEY, sessionPlayerId);
+  else localStorage.removeItem(SESSION_PLAYER_KEY);
 }
 
 function setTurnPointerToPlayer(playerId) {
@@ -1094,7 +1146,9 @@ function renderSummary() {
   $("statusLine").textContent = game
     ? winningPlayer
       ? `Game over · ${winningPlayer.name} wins`
-      : `Round ${game.round} · ${game.phase === "planning" ? "planning phase" : `${player?.name || "No one"}'s turn`} · ${active.length} active players`
+      : isPlayerSession()
+      ? `Player view · ${sessionPlayer()?.name || "Unknown player"} · Round ${game.round} · ${game.phase === "planning" ? "planning phase" : `${player?.name || "No one"}'s turn`}`
+      : `Moderator view · Round ${game.round} · ${game.phase === "planning" ? "planning phase" : `${player?.name || "No one"}'s turn`} · ${active.length} active players`
     : `${countries.length} countries loaded`;
   $("summaryGrid").innerHTML = active.map((p) => {
     const owned = ownedCountries(p.id);
@@ -1173,7 +1227,7 @@ function updatePlaceCountries() {
 }
 
 function updateTransferCountries() {
-  const player = currentPlayer();
+  const player = visibleSessionPlayer();
   const playerId = player?.id;
   if (!playerId) {
     setOptions($("transferFrom"), []);
@@ -1263,18 +1317,28 @@ function renderTurn() {
   const player = currentPlayer();
   const winningPlayer = winner();
   const transferStage = game.turnStage === "transfer";
-  $("turnTitle").textContent = winningPlayer ? `${winningPlayer.name} Wins` : player ? `${player.name}'s Turn` : "Game Over";
+  const canAct = playerSessionCanAct();
+  const viewingPlayer = visibleSessionPlayer();
+  $("turnTitle").textContent = winningPlayer
+    ? `${winningPlayer.name} Wins`
+    : isPlayerSession() && !canAct
+    ? `${viewingPlayer?.name || "Player"}'s Map`
+    : player
+    ? `${player.name}'s Turn`
+    : "Game Over";
   $("turnNote").textContent = winningPlayer
     ? "Only one player remains. The game is complete."
+    : isPlayerSession() && !canAct
+    ? `It is currently ${player?.name || "another player"}'s turn. Your map remains visible here.`
     : player
     ? transferStage
       ? `End-of-turn transfers are available. After this turn, the round ends on a 1 in ${activePlayers().length} roll.`
       : `Attack or claim until finished, then open end-of-turn transfers. After this turn, the round ends on a 1 in ${activePlayers().length} roll.`
     : "Only one player remains.";
-  $("attackSection").classList.toggle("hidden", Boolean(winningPlayer) || transferStage);
-  $("transferSection").classList.toggle("hidden", Boolean(winningPlayer) || !transferStage);
-  $("finishAttackButton").disabled = Boolean(winningPlayer) || transferStage;
-  $("endTurnButton").disabled = Boolean(winningPlayer);
+  $("attackSection").classList.toggle("hidden", Boolean(winningPlayer) || transferStage || !canAct);
+  $("transferSection").classList.toggle("hidden", Boolean(winningPlayer) || !transferStage || !canAct);
+  $("finishAttackButton").disabled = Boolean(winningPlayer) || transferStage || !canAct;
+  $("endTurnButton").disabled = Boolean(winningPlayer) || !canAct;
   const owned = player ? ownedCountries(player.id).filter((country) => countryTroops(country.name) > 1) : [];
   setOptions($("claimFrom"), owned, (country) => `${country.name} (${countryTroops(country.name)})`, (country) => country.name);
   setOptions($("attackFrom"), owned, (country) => `${country.name} (${countryTroops(country.name)})`, (country) => country.name);
@@ -1859,16 +1923,16 @@ function renderPlayerMapFor(player, { svgId, detailsId, unmappedId, labelId }) {
 }
 
 function renderVisible() {
-  const turnPlayer = currentPlayer();
-  setOptions($("visiblePlayer"), turnPlayer ? [turnPlayer] : [], (p) => p.name, (p) => p.id);
-  if (turnPlayer) $("visiblePlayer").value = turnPlayer.id;
-  renderPlayerMapFor(turnPlayer, {
+  const player = visibleSessionPlayer();
+  setOptions($("visiblePlayer"), player ? [player] : [], (p) => p.name, (p) => p.id);
+  if (player) $("visiblePlayer").value = player.id;
+  renderPlayerMapFor(player, {
     svgId: "playerMap",
     detailsId: "mapDetails",
     unmappedId: "unmappedVisible",
     labelId: "visiblePlayerLabel"
   });
-  renderRegionProgress(turnPlayer, "regionProgress");
+  renderRegionProgress(player, "regionProgress");
 }
 
 function renderPlanningVisible() {
@@ -1985,6 +2049,12 @@ function renderLog() {
 
 function canOpenTab(name) {
   if (!game) return false;
+  if (isPlayerSession()) {
+    if (name === "moderator") return false;
+    if (name === "planning") return game.phase === "planning" && currentPlanningPlayer()?.id === sessionPlayerId;
+    if (name === "turn") return game.phase !== "planning" && game.phase !== "gameover";
+    return name === "log";
+  }
   if (name === "planning") return game.phase === "planning";
   if (name === "turn") return game.phase !== "planning" && game.phase !== "gameover";
   return true;
@@ -1992,6 +2062,7 @@ function canOpenTab(name) {
 
 function renderTabs() {
   document.querySelectorAll(".tab").forEach((button) => {
+    button.classList.toggle("hidden", isPlayerSession() && button.dataset.tab === "moderator");
     button.disabled = !canOpenTab(button.dataset.tab);
   });
 }
@@ -2015,6 +2086,9 @@ function render() {
   renderTurn();
   renderVisible();
   renderLog();
+  if (isPlayerSession() && !canOpenTab(document.querySelector(".tab.active")?.dataset.tab)) {
+    showTab(canOpenTab("turn") ? "turn" : canOpenTab("planning") ? "planning" : "log");
+  }
 }
 
 function showTab(name) {
@@ -2368,6 +2442,7 @@ function bindEvents() {
     }
   });
   $("loadOnlineGameButton").addEventListener("click", () => loadOnlineGame());
+  $("joinRole").addEventListener("change", updateJoinRoleFields);
   $("copyOnlineGameIdButton").addEventListener("click", async () => {
     if (!onlineGameId) {
       alert("There is no online Game ID yet.");
@@ -2546,6 +2621,7 @@ async function init() {
   await loadWorldMap();
   bindEvents();
   initOnlineClient();
+  updateJoinRoleFields();
   renderSetupNames();
   render();
 }

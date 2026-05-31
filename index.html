@@ -41,7 +41,18 @@
             Game ID
             <input id="onlineGameId" type="text" placeholder="Paste a shared game ID">
           </label>
-          <button id="loadOnlineGameButton" type="button">Load Online Game</button>
+          <label>
+            Join as
+            <select id="joinRole">
+              <option value="moderator">Moderator</option>
+              <option value="player">Player</option>
+            </select>
+          </label>
+          <label id="joinPlayerNameLabel" class="hidden">
+            Player name
+            <input id="joinPlayerName" type="text" placeholder="Exact player name">
+          </label>
+          <button id="loadOnlineGameButton" type="button">Enter Game</button>
         </div>
       </section>
 
@@ -254,6 +265,6 @@
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="supabase-config.js?v=20260531-online-save-1"></script>
-    <script src="app.js?v=20260531-header-actions-align-1"></script>
+    <script src="app.js?v=20260531-player-join-flow-1"></script>
   </body>
 </html>
