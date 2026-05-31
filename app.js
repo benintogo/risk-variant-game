@@ -119,7 +119,7 @@ let onlineSaveTimer = null;
 let onlineSaveInFlight = false;
 let onlineSaveQueued = false;
 let setupMode = false;
-let sessionRole = localStorage.getItem(SESSION_ROLE_KEY) || "moderator";
+let sessionRole = localStorage.getItem(SESSION_ROLE_KEY) || "player";
 let sessionPlayerId = localStorage.getItem(SESSION_PLAYER_KEY) || "";
 
 const MAP_MIN_SCALE = 145;
@@ -433,7 +433,6 @@ function startGame(names) {
   game.consecutivePasses = [];
   addLog("Round 1 begins with action turns. Initial planning is skipped.");
   recordTurnSnapshot("Initial setup");
-  setSession("moderator");
   resetMapView(false);
   saveGame();
   showTab("turn");
@@ -533,8 +532,7 @@ function rememberOnlineGameId(id) {
 }
 
 function updateJoinRoleFields() {
-  const isPlayer = $("joinRole")?.value === "player";
-  $("joinPlayerNameLabel")?.classList.toggle("hidden", !isPlayer);
+  $("joinPlayerNameLabel")?.classList.remove("hidden");
 }
 
 function queueOnlineSave() {
@@ -594,21 +592,16 @@ async function loadOnlineGame(id) {
   }
   game = data[stateColumn];
   normalizeLoadedGame();
-  const requestedRole = $("joinRole")?.value || "moderator";
-  if (requestedRole === "player") {
-    const requestedName = ($("joinPlayerName")?.value || "").trim().toLowerCase();
-    const player = game.players.find((candidate) => candidate.name.toLowerCase() === requestedName);
-    if (!player) {
-      const names = game.players.map((candidate) => candidate.name).join(", ");
-      game = null;
-      alert(`That player name was not found. Available players: ${names}`);
-      render();
-      return;
-    }
-    setSession("player", player.id);
-  } else {
-    setSession("moderator");
+  const requestedName = ($("joinPlayerName")?.value || "").trim().toLowerCase();
+  const player = game.players.find((candidate) => candidate.name.toLowerCase() === requestedName);
+  if (!player) {
+    const names = game.players.map((candidate) => candidate.name).join(", ");
+    game = null;
+    alert(`That player name was not found. Available players: ${names}`);
+    render();
+    return;
   }
+  setSession("player", player.id);
   setupMode = false;
   rememberOnlineGameId(requestedId);
   resetMapView(false);
@@ -845,8 +838,8 @@ function playerSessionCanAct() {
 }
 
 function setSession(role, playerId = "") {
-  sessionRole = role === "player" ? "player" : "moderator";
-  sessionPlayerId = sessionRole === "player" ? playerId : "";
+  sessionRole = "player";
+  sessionPlayerId = playerId;
   localStorage.setItem(SESSION_ROLE_KEY, sessionRole);
   if (sessionPlayerId) localStorage.setItem(SESSION_PLAYER_KEY, sessionPlayerId);
   else localStorage.removeItem(SESSION_PLAYER_KEY);
@@ -1137,6 +1130,7 @@ function renderSetupNames() {
     label.appendChild(input);
     $("playerNames").appendChild(label);
   }
+  if ($("setupPlayerName") && !$("setupPlayerName").value.trim()) $("setupPlayerName").value = "Player 1";
 }
 
 function renderSummary() {
@@ -1146,9 +1140,7 @@ function renderSummary() {
   $("statusLine").textContent = game
     ? winningPlayer
       ? `Game over · ${winningPlayer.name} wins`
-      : isPlayerSession()
-      ? `Player view · ${sessionPlayer()?.name || "Unknown player"} · Round ${game.round} · ${game.phase === "planning" ? "planning phase" : `${player?.name || "No one"}'s turn`}`
-      : `Moderator view · Round ${game.round} · ${game.phase === "planning" ? "planning phase" : `${player?.name || "No one"}'s turn`} · ${active.length} active players`
+      : `Player view · ${sessionPlayer()?.name || "Unknown player"} · Round ${game.round} · ${game.phase === "planning" ? "planning phase" : `${player?.name || "No one"}'s turn`}`
     : `${countries.length} countries loaded`;
   $("summaryGrid").innerHTML = active.map((p) => {
     const owned = ownedCountries(p.id);
@@ -2049,22 +2041,22 @@ function renderLog() {
 
 function canOpenTab(name) {
   if (!game) return false;
-  if (isPlayerSession()) {
-    if (name === "moderator") return false;
-    if (name === "planning") return game.phase === "planning" && currentPlanningPlayer()?.id === sessionPlayerId;
-    if (name === "turn") return game.phase !== "planning" && game.phase !== "gameover";
-    return name === "log";
-  }
-  if (name === "planning") return game.phase === "planning";
+  if (name === "moderator") return false;
+  if (name === "planning") return game.phase === "planning" && currentPlanningPlayer()?.id === sessionPlayerId;
   if (name === "turn") return game.phase !== "planning" && game.phase !== "gameover";
-  return true;
+  return name === "log";
 }
 
 function renderTabs() {
   document.querySelectorAll(".tab").forEach((button) => {
-    button.classList.toggle("hidden", isPlayerSession() && button.dataset.tab === "moderator");
     button.disabled = !canOpenTab(button.dataset.tab);
   });
+}
+
+function preferredOpenTab() {
+  if (canOpenTab("planning")) return "planning";
+  if (canOpenTab("turn")) return "turn";
+  return "log";
 }
 
 function render() {
@@ -2086,9 +2078,8 @@ function render() {
   renderTurn();
   renderVisible();
   renderLog();
-  if (isPlayerSession() && !canOpenTab(document.querySelector(".tab.active")?.dataset.tab)) {
-    showTab(canOpenTab("turn") ? "turn" : canOpenTab("planning") ? "planning" : "log");
-  }
+  const activeTab = document.querySelector(".tab.active")?.dataset.tab;
+  showTab(canOpenTab(activeTab) ? activeTab : preferredOpenTab());
 }
 
 function showTab(name) {
@@ -2428,7 +2419,16 @@ function bindEvents() {
       alert("Please enter at least two unique player names.");
       return;
     }
+    const creatorName = $("setupPlayerName").value.trim().toLowerCase();
+    const creator = names.find((name) => name.toLowerCase() === creatorName);
+    if (!creator) {
+      alert("Your player name must exactly match one of the players in this game.");
+      return;
+    }
     startGame(names);
+    const player = game.players.find((candidate) => candidate.name.toLowerCase() === creatorName);
+    setSession("player", player.id);
+    resetMapView(false);
     await createOnlineGame();
     render();
   });
@@ -2442,7 +2442,6 @@ function bindEvents() {
     }
   });
   $("loadOnlineGameButton").addEventListener("click", () => loadOnlineGame());
-  $("joinRole").addEventListener("change", updateJoinRoleFields);
   $("copyOnlineGameIdButton").addEventListener("click", async () => {
     if (!onlineGameId) {
       alert("There is no online Game ID yet.");

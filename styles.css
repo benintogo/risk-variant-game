@@ -124,9 +124,14 @@ main {
   margin: 14px 0;
 }
 
+.setup-player-name {
+  max-width: 340px;
+  margin: 16px 0;
+}
+
 .online-row {
   display: grid;
-  grid-template-columns: minmax(220px, 1fr) minmax(150px, 220px) minmax(180px, 260px) auto;
+  grid-template-columns: minmax(220px, 1fr) minmax(180px, 260px) auto;
   gap: 12px;
   align-items: end;
 }

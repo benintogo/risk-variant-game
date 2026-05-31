@@ -3,13 +3,13 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Risk Variant Moderator</title>
+    <title>Risk Variant Game</title>
     <link rel="stylesheet" href="styles.css">
   </head>
   <body>
     <header class="topbar">
       <div>
-        <h1>Risk Variant Moderator</h1>
+        <h1>Risk Variant Game</h1>
         <p id="statusLine">Loading map data...</p>
       </div>
       <div class="top-actions">
@@ -41,15 +41,8 @@
             Game ID
             <input id="onlineGameId" type="text" placeholder="Paste a shared game ID">
           </label>
-          <label>
-            Join as
-            <select id="joinRole">
-              <option value="moderator">Moderator</option>
-              <option value="player">Player</option>
-            </select>
-          </label>
-          <label id="joinPlayerNameLabel" class="hidden">
-            Player name
+          <label id="joinPlayerNameLabel">
+            Your player name
             <input id="joinPlayerName" type="text" placeholder="Exact player name">
           </label>
           <button id="loadOnlineGameButton" type="button">Enter Game</button>
@@ -66,14 +59,17 @@
           <button id="makeNamesButton" type="button">Set Names</button>
         </div>
         <div id="playerNames" class="name-grid"></div>
+        <label class="setup-player-name">
+          Your player name
+          <input id="setupPlayerName" type="text" value="Player 1">
+        </label>
         <button id="startGameButton" type="button" class="primary">Start Game</button>
       </section>
 
       <section id="gameView" class="hidden">
         <nav class="tabs" aria-label="Views">
-          <button class="tab active" type="button" data-tab="moderator">Moderator</button>
           <button class="tab" type="button" data-tab="planning">Round Planning</button>
-          <button class="tab" type="button" data-tab="turn">Turn Actions</button>
+          <button class="tab active" type="button" data-tab="turn">Turn Actions</button>
           <button class="tab" type="button" data-tab="log">Log</button>
         </nav>
 
@@ -265,6 +261,6 @@
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="supabase-config.js?v=20260531-online-save-1"></script>
-    <script src="app.js?v=20260531-player-join-flow-1"></script>
+    <script src="app.js?v=20260531-hostless-player-flow-1"></script>
   </body>
 </html>
