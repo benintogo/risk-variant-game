@@ -1854,9 +1854,9 @@ function contextualActionHtml(country, playerId, detailsId) {
   const owner = game.ownership[country.name];
   const current = currentPlayer();
   const isOwnCountry = owner === playerId;
-  if (detailsId === "planningMapDetails") {
+  if (game.phase === "planning") {
     const player = sessionPlayer();
-    if (game.phase !== "planning" || !player || player.id !== playerId || !isOwnCountry || player.reserve <= 0) return "";
+    if (!player || player.id !== playerId || !isOwnCountry || player.reserve <= 0) return "";
     return `
       <form class="map-action-panel" data-context-action="place-recruits" data-country="${country.name}">
         <label>Recruits
@@ -2107,7 +2107,10 @@ function renderPlayerMapFor(player, { svgId, detailsId, unmappedId, labelId }) {
     const title = document.createElementNS("http://www.w3.org/2000/svg", "title");
     title.textContent = country.name;
     path.appendChild(title);
-    path.addEventListener("click", () => selectVisibleMapCountry(country.name, visible, playerId, svgId, detailsId));
+    path.addEventListener("click", (event) => {
+      event.stopPropagation();
+      selectVisibleMapCountry(country.name, visible, playerId, svgId, detailsId);
+    });
     svg.appendChild(path);
     const candidates = labelCandidatePointsForFeature(feature);
     if (candidates.length) {
@@ -2406,14 +2409,14 @@ function bindInteractivePlayerMap({ svgId, getPlayer, renderMap, detailsId, rese
 function bindMapControls() {
   bindInteractivePlayerMap({
     svgId: "playerMap",
-    getPlayer: currentPlayer,
+    getPlayer: visibleSessionPlayer,
     renderMap: renderVisible,
     detailsId: "mapDetails",
     resetButtonId: "resetMapButton"
   });
   bindInteractivePlayerMap({
     svgId: "planningPlayerMap",
-    getPlayer: currentPlanningPlayer,
+    getPlayer: () => currentPlanningPlayer() || visibleSessionPlayer(),
     renderMap: renderPlanningVisible,
     detailsId: "planningMapDetails"
   });
