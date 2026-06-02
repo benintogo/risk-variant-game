@@ -57,6 +57,11 @@ h3 {
   color: var(--muted);
 }
 
+#statusLine.recruit-alert {
+  color: #8a4b00;
+  font-weight: 700;
+}
+
 main {
   max-width: none;
   margin: 0 auto;

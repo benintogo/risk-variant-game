@@ -121,6 +121,7 @@ let onlineSaveQueued = false;
 let onlineRefreshTimer = null;
 let onlineRefreshInFlight = false;
 let lastOnlineStateText = "";
+let pendingOnlineStateText = "";
 let setupMode = false;
 let sessionRole = localStorage.getItem(SESSION_ROLE_KEY) || "player";
 let sessionPlayerId = localStorage.getItem(SESSION_PLAYER_KEY) || "";
@@ -571,6 +572,11 @@ function gameStateText(state = game) {
   }
 }
 
+function isEditingGameControl() {
+  const active = document.activeElement;
+  return Boolean(active && active.closest("#gameView") && active.matches("input, select, textarea"));
+}
+
 function generateShortGameId() {
   const alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
   let value = "";
@@ -675,7 +681,7 @@ async function loadOnlineGame(id) {
   render();
 }
 
-async function refreshOnlineGame() {
+async function refreshOnlineGame({ forceRender = false } = {}) {
   if (!onlineClient || !onlineGameId || !game || onlineSaveInFlight || onlineRefreshInFlight) return;
   onlineRefreshInFlight = true;
   const stateColumn = onlineStateColumn();
@@ -701,12 +707,18 @@ async function refreshOnlineGame() {
     lastOnlineStateText = nextStateText;
     return;
   }
+  if (!forceRender && isEditingGameControl()) {
+    pendingOnlineStateText = nextStateText;
+    setOnlineStatus("Online updates are available. Press Refresh when you are ready.");
+    return;
+  }
   const previousTurnId = currentPlayer()?.id || "";
   const previousPhase = game.phase;
   const previousPlanningId = game.planningPlayerId || "";
   game = data[stateColumn];
   normalizeLoadedGame();
   lastOnlineStateText = gameStateText();
+  pendingOnlineStateText = "";
   if (game) localStorage.setItem(SAVE_KEY, JSON.stringify(game));
   const nextTurnId = currentPlayer()?.id || "";
   if (previousTurnId !== nextTurnId || previousPhase !== game.phase || previousPlanningId !== (game.planningPlayerId || "")) {
@@ -1272,10 +1284,16 @@ function renderSetupNames() {
 function renderSummary() {
   const active = activePlayers();
   const player = currentPlayer();
+  const self = sessionPlayer();
   const winningPlayer = winner();
+  $("statusLine").classList.toggle("recruit-alert", Boolean(game && game.phase === "planning" && self?.reserve > 0));
   $("statusLine").textContent = game
     ? winningPlayer
       ? `Game over · ${winningPlayer.name} wins`
+      : game.phase === "planning" && self?.reserve > 0
+      ? `Place your ${self.reserve} recruit${self.reserve === 1 ? "" : "s"} now · click one of your countries on the map`
+      : game.phase === "planning"
+      ? `Recruit placement is underway · ${playersWithRecruits().length} player${playersWithRecruits().length === 1 ? "" : "s"} still placing`
       : `Player view · ${sessionPlayer()?.name || "Unknown player"} · Round ${game.round} · ${game.phase === "planning" ? "planning phase" : `${player?.name || "No one"}'s turn`}`
     : `${countries.length} countries loaded`;
   $("summaryGrid").innerHTML = active.map((p) => {
@@ -2754,7 +2772,7 @@ function bindEvents() {
     }
   });
   $("refreshGameButton").addEventListener("click", async () => {
-    await refreshOnlineGame();
+    await refreshOnlineGame({ forceRender: true });
   });
   $("loadOnlineGameButton").addEventListener("click", () => loadOnlineGame());
   $("copyOnlineGameIdButton").addEventListener("click", async () => {
