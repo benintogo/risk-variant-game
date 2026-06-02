@@ -1754,6 +1754,7 @@ function labelCandidatePointsForFeature(feature, view = globeView) {
   if (override) {
     const projected = projectPointForView(override, view);
     if (projected) candidates.push({ ...projected, priority: 0 });
+    return candidates.filter((point) => point.visibility > 0.25);
   }
 
   const rings = feature.parts
