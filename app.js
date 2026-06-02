@@ -2285,7 +2285,7 @@ function renderLog() {
 function canOpenTab(name) {
   if (!game) return false;
   if (name === "moderator") return false;
-  if (name === "planning") return game.phase === "planning" && sessionPlayer()?.reserve > 0;
+  if (name === "planning") return game.phase === "planning";
   if (name === "turn") return game.phase !== "gameover";
   return name === "log";
 }
@@ -2752,6 +2752,9 @@ function bindEvents() {
     } else {
       alert("Game saved in this browser.");
     }
+  });
+  $("refreshGameButton").addEventListener("click", async () => {
+    await refreshOnlineGame();
   });
   $("loadOnlineGameButton").addEventListener("click", () => loadOnlineGame());
   $("copyOnlineGameIdButton").addEventListener("click", async () => {
