@@ -2007,7 +2007,10 @@ function appendMapLabel(svg, entry, onSelect) {
     tspan.textContent = line;
     text.appendChild(tspan);
   });
-  text.addEventListener("click", () => onSelect(entry.country.name));
+  text.addEventListener("click", (event) => {
+    event.stopPropagation();
+    onSelect(entry.country.name);
+  });
   svg.appendChild(text);
 }
 

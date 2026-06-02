@@ -605,7 +605,8 @@ form.map-action-panel {
 
 .map-label,
 .map-label tspan {
-  pointer-events: none;
+  pointer-events: auto;
+  cursor: pointer;
 }
 
 .map-label {
