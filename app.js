@@ -516,6 +516,10 @@ function onlineStateColumn() {
   return window.SUPABASE_CONFIG?.stateColumn || "state";
 }
 
+function onlineShortIdColumn() {
+  return window.SUPABASE_CONFIG?.shortIdColumn || "short_id";
+}
+
 function onlineConfigured() {
   return Boolean(window.SUPABASE_CONFIG?.url && window.SUPABASE_CONFIG?.anonKey && window.supabase);
 }
@@ -567,6 +571,15 @@ function gameStateText(state = game) {
   }
 }
 
+function generateShortGameId() {
+  const alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+  let value = "";
+  for (let index = 0; index < 6; index += 1) {
+    value += alphabet[Math.floor(Math.random() * alphabet.length)];
+  }
+  return value;
+}
+
 function updateJoinRoleFields() {
   $("joinPlayerNameLabel")?.classList.remove("hidden");
 }
@@ -590,21 +603,23 @@ async function createOnlineGame() {
     return;
   }
   const stateColumn = onlineStateColumn();
+  const shortIdColumn = onlineShortIdColumn();
   const gameName = `Risk game - ${new Date().toLocaleString()}`;
+  const shortId = generateShortGameId();
   const { data, error } = await onlineClient
     .from(onlineTableName())
-    .insert({ name: gameName, [stateColumn]: game })
-    .select("id")
+    .insert({ name: gameName, [stateColumn]: game, [shortIdColumn]: shortId })
+    .select(`id, ${shortIdColumn}`)
     .single();
   if (error) {
     alert(`Supabase could not create the online game: ${error.message}`);
     setOnlineStatus("Online save failed.");
     return;
   }
-  rememberOnlineGameId(data.id);
+  rememberOnlineGameId(data[shortIdColumn] || data.id);
   lastOnlineStateText = gameStateText();
   startOnlineRefresh();
-  setOnlineStatus(`Online game created. Share this ID: ${data.id}`);
+  setOnlineStatus(`Online game created. Share this ID: ${onlineGameId}`);
 }
 
 async function loadOnlineGame(id) {
@@ -618,11 +633,21 @@ async function loadOnlineGame(id) {
     return;
   }
   const stateColumn = onlineStateColumn();
-  const { data, error } = await onlineClient
+  const shortIdColumn = onlineShortIdColumn();
+  let { data, error } = await onlineClient
     .from(onlineTableName())
-    .select(stateColumn)
-    .eq("id", requestedId)
-    .single();
+    .select(`${stateColumn}, id, ${shortIdColumn}`)
+    .eq(shortIdColumn, requestedId.toUpperCase())
+    .maybeSingle();
+  if (error || !data) {
+    const fallback = await onlineClient
+      .from(onlineTableName())
+      .select(`${stateColumn}, id, ${shortIdColumn}`)
+      .eq("id", requestedId)
+      .single();
+    data = fallback.data;
+    error = fallback.error;
+  }
   if (error) {
     alert(`Supabase could not load that game: ${error.message}`);
     setOnlineStatus("Online load failed.");
@@ -641,7 +666,7 @@ async function loadOnlineGame(id) {
   }
   setSession("player", player.id);
   setupMode = false;
-  rememberOnlineGameId(requestedId);
+  rememberOnlineGameId(data[shortIdColumn] || requestedId);
   resetMapView(false);
   saveLocalGame();
   lastOnlineStateText = gameStateText();
@@ -654,11 +679,21 @@ async function refreshOnlineGame() {
   if (!onlineClient || !onlineGameId || !game || onlineSaveInFlight || onlineRefreshInFlight) return;
   onlineRefreshInFlight = true;
   const stateColumn = onlineStateColumn();
-  const { data, error } = await onlineClient
+  const shortIdColumn = onlineShortIdColumn();
+  let { data, error } = await onlineClient
     .from(onlineTableName())
-    .select(stateColumn)
-    .eq("id", onlineGameId)
-    .single();
+    .select(`${stateColumn}, id, ${shortIdColumn}`)
+    .eq(shortIdColumn, onlineGameId.toUpperCase())
+    .maybeSingle();
+  if (error || !data) {
+    const fallback = await onlineClient
+      .from(onlineTableName())
+      .select(`${stateColumn}, id, ${shortIdColumn}`)
+      .eq("id", onlineGameId)
+      .single();
+    data = fallback.data;
+    error = fallback.error;
+  }
   onlineRefreshInFlight = false;
   if (error || !data?.[stateColumn]) return;
   const nextStateText = gameStateText(data[stateColumn]);
@@ -700,10 +735,18 @@ async function saveOnlineGame(options = {}) {
   onlineSaveInFlight = true;
   setOnlineStatus(`Saving online game ${onlineGameId}...`);
   const stateColumn = onlineStateColumn();
-  const { error } = await onlineClient
+  const shortIdColumn = onlineShortIdColumn();
+  let { error } = await onlineClient
     .from(onlineTableName())
     .update({ [stateColumn]: game })
-    .eq("id", onlineGameId);
+    .eq(shortIdColumn, onlineGameId.toUpperCase());
+  if (error) {
+    const fallback = await onlineClient
+      .from(onlineTableName())
+      .update({ [stateColumn]: game })
+      .eq("id", onlineGameId);
+    error = fallback.error;
+  }
   onlineSaveInFlight = false;
   if (error) {
     if (!options.quiet) alert(`Supabase could not save the online game: ${error.message}`);
@@ -789,6 +832,21 @@ function attackOptionsFor(fromName) {
     }
   }
   return [...options.values()].sort((a, b) => a.target.localeCompare(b.target));
+}
+
+function hasCompleteInfoAbout(playerId, countryName) {
+  return visibleCountriesFor(playerId).some(({ country, visibility }) => country.name === countryName && visibility !== "Same region");
+}
+
+function viableAttackOptionsFor(fromName) {
+  const playerId = game.ownership[fromName];
+  return attackOptionsFor(fromName).filter((option) => {
+    const targetOwner = game.ownership[option.target];
+    if (targetOwner) return true;
+    if (!hasCompleteInfoAbout(playerId, option.target)) return true;
+    const minimumMove = Math.max(1, countryByName.get(option.target)?.magnitude || 0);
+    return countryTroops(fromName) - 1 >= minimumMove;
+  });
 }
 
 function claimOptionsFor(fromName) {
@@ -1326,6 +1384,21 @@ function renderTransferQueue() {
   $("transferQueue").innerHTML = `<p class="note">Transfers apply immediately when submitted.</p>`;
 }
 
+function renderMapTurnFlowButton() {
+  const button = $("mapTurnFlowButton");
+  if (!button) return;
+  const show = game?.phase === "turn" && playerSessionCanAct() && !winner();
+  button.classList.toggle("hidden", !show);
+  if (!show) return;
+  if (game.turnStage === "transfer") {
+    button.textContent = "End Turn";
+    button.classList.add("primary");
+  } else {
+    button.textContent = "Finished Attacking";
+    button.classList.remove("primary");
+  }
+}
+
 function regionProgressFor(playerId) {
   const owned = ownedCountries(playerId);
   const regions = [...new Set(owned.map((country) => country.region).filter(Boolean))]
@@ -1420,6 +1493,7 @@ function renderTurn() {
   updateAttackTargets();
   updateTransferCountries();
   renderTransferQueue();
+  renderMapTurnFlowButton();
 }
 
 function updateClaimTargets() {
@@ -1436,7 +1510,7 @@ function updateClaimTargets() {
 
 function updateAttackTargets() {
   const from = $("attackFrom").value;
-  const options = from ? attackOptionsFor(from) : [];
+  const options = from ? viableAttackOptionsFor(from) : [];
   setOptions($("attackTo"), options, (o) => `${o.target} (${o.type}, max ${o.maxDice})`, (o) => o.target);
   updateAttackDice();
 }
@@ -1444,7 +1518,7 @@ function updateAttackTargets() {
 function updateAttackDice() {
   const from = $("attackFrom").value;
   const target = $("attackTo").value;
-  const option = attackOptionsFor(from).find((item) => item.target === target);
+  const option = viableAttackOptionsFor(from).find((item) => item.target === target);
   const max = option ? Math.min(option.maxDice, countryTroops(from) - 1) : 0;
   setOptions($("attackDice"), Array.from({ length: Math.max(0, max) }, (_, i) => i + 1), String, String);
   if (max > 0) $("attackDice").value = String(max);
@@ -1809,13 +1883,10 @@ function contextualActionHtml(country, playerId, detailsId) {
         </label>
         <button type="submit" class="primary">Transfer</button>
       </form>
-      <div class="map-action-panel">
-        <button type="button" class="primary" data-context-button="end-turn">End turn</button>
-      </div>
     `;
   }
   const claims = claimOptionsFor(country.name);
-  const attacks = attackOptionsFor(country.name);
+  const attacks = viableAttackOptionsFor(country.name);
   return `
     <div class="map-action-panel">
       ${claims.length ? `
@@ -1847,7 +1918,6 @@ function contextualActionHtml(country, playerId, detailsId) {
           <button type="submit" class="primary">Attack</button>
         </form>
       ` : ""}
-      <button type="button" data-context-button="finish-attacking">Finished attacking</button>
     </div>
   `;
 }
@@ -2449,7 +2519,7 @@ function handleAttack(event) {
   const target = $("attackTo").value;
   const attackDice = Number($("attackDice").value);
   if (!attacker || !from || !target || !attackDice) return;
-  const option = attackOptionsFor(from).find((item) => item.target === target);
+  const option = viableAttackOptionsFor(from).find((item) => item.target === target);
   if (option?.limited) {
     handleLimitedAttack(attacker, from, target);
     return;
@@ -2578,7 +2648,7 @@ function updateContextAttackDice(rootId = "mapDetails") {
     const target = form.querySelector('[name="target"]')?.value;
     const diceSelect = form.querySelector('[name="dice"]');
     const moveInput = form.querySelector('[name="move"]');
-    const option = attackOptionsFor(from).find((item) => item.target === target);
+    const option = viableAttackOptionsFor(from).find((item) => item.target === target);
     const max = option ? Math.min(option.maxDice, countryTroops(from) - 1) : 0;
     diceSelect.innerHTML = "";
     for (let value = 1; value <= max; value += 1) {
@@ -2796,6 +2866,10 @@ function bindEvents() {
   $("finishAttackButton").addEventListener("click", () => {
     game.turnStage = "transfer";
     render();
+  });
+  $("mapTurnFlowButton").addEventListener("click", () => {
+    if (game.turnStage === "transfer") $("endTurnButton").click();
+    else $("finishAttackButton").click();
   });
   $("claimForm").addEventListener("submit", (event) => {
     event.preventDefault();
