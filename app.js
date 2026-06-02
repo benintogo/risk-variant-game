@@ -1753,7 +1753,8 @@ function labelCandidatePointsForFeature(feature, view = globeView) {
   const override = MAP_LABEL_POINTS[feature.riskName] || MAP_LABEL_POINTS[feature.name];
   if (override) {
     const projected = projectPointForView(override, view);
-    if (projected) candidates.push({ ...projected, priority: 0 });
+    const minimumVisibility = feature.riskName === "France" || feature.name === "France" ? 0.65 : 0.25;
+    if (projected && projected.visibility > minimumVisibility) candidates.push({ ...projected, priority: 0 });
     return candidates.filter((point) => point.visibility > 0.25);
   }
 
