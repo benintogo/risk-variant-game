@@ -445,6 +445,8 @@ function startGame(names) {
     id: `p${index + 1}`,
     name,
     carry: 0,
+    nuclearRecruitPenaltyRemaining: 0,
+    nuclearRecruitPenaltySource: "",
     reserve: 0,
     eliminated: false
   }));
@@ -453,7 +455,14 @@ function startGame(names) {
     const country = starts[index];
     setCountryOwner(country.name, player.id);
     game.troops[country.name] = 10;
+    if (isNuclearPower(country.name, player.id)) {
+      player.nuclearRecruitPenaltyRemaining = Math.max(0, country.magnitude || 0);
+      player.nuclearRecruitPenaltySource = country.name;
+    }
     addPrivateLog(`${player.name} starts in ${country.name} with 10 troops.`, [player.id]);
+    if (player.nuclearRecruitPenaltyRemaining > 0) {
+      addPrivateLog(`${player.name} starts on nuclear country ${country.name}; the first ${player.nuclearRecruitPenaltyRemaining} region bonus recruit${player.nuclearRecruitPenaltyRemaining === 1 ? "" : "s"} will be withheld.`, [player.id]);
+    }
   });
   game.phase = "turn";
   game.incomeCalculatedRound = 1;
@@ -491,6 +500,10 @@ function normalizeLoadedGame() {
   game.planningPlayerId ||= null;
   game.turnHistory ||= [];
   game.timelineIndex = Number(game.timelineIndex || 0);
+  for (const player of game.players || []) {
+    player.nuclearRecruitPenaltyRemaining = Number(player.nuclearRecruitPenaltyRemaining || 0);
+    player.nuclearRecruitPenaltySource ||= "";
+  }
   for (const country of countries) {
     if (game.ownership[country.name] && !game.ownershipSince[country.name]) {
       game.ownershipSince[country.name] = game.ownershipTick++;
@@ -920,12 +933,31 @@ function calculateRecruits() {
     player.carry = Number((raw - base).toFixed(8));
     const regions = controlledRegions(player.id);
     const bonus = regions.reduce((sum, region) => sum + (REGION_BONUSES[region] || 0), 0);
-    player.reserve += base + bonus;
-    totalAwarded += base + bonus;
-    addPrivateLog(`${player.name} receives ${base} recruits from magnitude, ${bonus} from regions, and carries ${player.carry.toFixed(2)}.`, [player.id]);
+    const penaltyBefore = Math.max(0, Number(player.nuclearRecruitPenaltyRemaining || 0));
+    const withheld = Math.min(bonus, penaltyBefore);
+    const awardedBonus = bonus - withheld;
+    player.nuclearRecruitPenaltyRemaining = penaltyBefore - withheld;
+    player.reserve += base + awardedBonus;
+    totalAwarded += base + awardedBonus;
+    const penaltyText = withheld > 0
+      ? ` ${withheld} region bonus recruit${withheld === 1 ? "" : "s"} withheld for nuclear penalties${player.nuclearRecruitPenaltySource ? ` (${player.nuclearRecruitPenaltySource})` : ""}; ${player.nuclearRecruitPenaltyRemaining} penalty remaining.`
+      : "";
+    addPrivateLog(`${player.name} receives ${base} recruits from magnitude, ${awardedBonus}/${bonus} from regions, and carries ${player.carry.toFixed(2)}.${penaltyText}`, [player.id]);
   }
   game.incomeCalculatedRound = game.round;
   return totalAwarded;
+}
+
+function addFutureRegionBonusPenalty(playerId, amount, source) {
+  const player = game.players.find((candidate) => candidate.id === playerId);
+  const penalty = Math.max(0, Number(amount || 0));
+  if (!player || penalty <= 0) return;
+  player.nuclearRecruitPenaltyRemaining = Math.max(0, Number(player.nuclearRecruitPenaltyRemaining || 0)) + penalty;
+  const existingSource = player.nuclearRecruitPenaltySource || "";
+  player.nuclearRecruitPenaltySource = existingSource && !existingSource.includes(source)
+    ? `${existingSource}; ${source}`
+    : source || existingSource;
+  addPrivateLog(`${player.name} has ${penalty} unpaid nuclear retaliation loss${penalty === 1 ? "" : "es"} converted into future region bonus withholding.`, [player.id]);
 }
 
 function startNewRound(reason) {
@@ -1029,6 +1061,29 @@ function advanceTurn() {
   }
 }
 
+function nextTurnAfterForfeit(playerId) {
+  const players = activePlayers().sort((a, b) => a.name.localeCompare(b.name));
+  const index = players.findIndex((player) => player.id === playerId);
+  if (index < 0 || players.length <= 1) return null;
+  let nextIndex = index;
+  let nextDirection = game.snakeDirection;
+  if (game.snakeDirection === 1) {
+    if (index >= players.length - 1) {
+      nextDirection = -1;
+      nextIndex = index - 1;
+    } else {
+      nextIndex = index + 1;
+    }
+  } else if (index <= 0) {
+    nextDirection = 1;
+    nextIndex = index + 1;
+  } else {
+    nextIndex = index - 1;
+  }
+  const nextPlayer = players[nextIndex] || null;
+  return nextPlayer ? { playerId: nextPlayer.id, direction: nextDirection } : null;
+}
+
 function rollDie() {
   return Math.floor(Math.random() * 6) + 1;
 }
@@ -1059,6 +1114,49 @@ function checkEliminations() {
   if (!gameEnded && turnPlayerId && activePlayers().some((player) => player.id === turnPlayerId)) {
     setTurnPointerToPlayer(turnPlayerId);
   }
+}
+
+function forfeitCurrentSessionPlayer() {
+  const player = sessionPlayer();
+  if (!game || !player || player.eliminated) {
+    alert("There is no active player to forfeit.");
+    return;
+  }
+  if (!confirm(`${player.name}, forfeit this game? Your troops outside Antarctica will be removed.`)) return;
+
+  const currentTurnPlayerId = currentPlayer()?.id || null;
+  const nextTurn = currentTurnPlayerId === player.id ? nextTurnAfterForfeit(player.id) : null;
+  for (const country of ownedCountries(player.id)) {
+    removeCountryOwner(country.name);
+  }
+  player.eliminated = true;
+  player.reserve = 0;
+  game.pendingTransfers = (game.pendingTransfers || []).filter((transfer) => transfer.playerId !== player.id);
+  game.consecutivePasses = (game.consecutivePasses || []).filter((id) => id !== player.id);
+  addPrivateLog(`${player.name} forfeits the game. Troops outside Antarctica are removed.`, [player.id]);
+  refreshRegionControlAnnouncements();
+
+  if (!concludeGameIfWon()) {
+    if (game.phase === "planning" && allRecruitsPlaced()) {
+      resolvePlanning();
+      return;
+    }
+    if (game.phase === "turn") {
+      game.turnStage = "attack";
+      game.turnHadAction = false;
+      if (nextTurn) {
+        game.snakeDirection = nextTurn.direction;
+        setTurnPointerToPlayer(nextTurn.playerId);
+      } else if (currentTurnPlayerId && activePlayers().some((active) => active.id === currentTurnPlayerId)) {
+        setTurnPointerToPlayer(currentTurnPlayerId);
+      } else {
+        game.turnPointer = Math.min(game.turnPointer, Math.max(0, activePlayers().length - 1));
+      }
+    }
+  }
+
+  saveGame();
+  render();
 }
 
 function nuclearLossOrder(playerId, excludeCountry = null) {
@@ -1152,7 +1250,7 @@ function applyNuclearStrike({ sourceName, fromPlayerId, targetPlayerId, automati
   }
 }
 
-function applyNuclearRetaliation({ targetName, actorId, defenderId = null, excludeCountry = null, action = "targets" }) {
+function applyNuclearRetaliation({ targetName, actorId, defenderId = null, excludeCountry = null, action = "targets", deferUnpaidRegionPenalty = false }) {
   const targetCountry = countryByName.get(targetName);
   if (!targetCountry || !isNuclearPower(targetName, defenderId || game.ownership[targetName])) return;
   const actor = game.players.find((player) => player.id === actorId);
@@ -1168,6 +1266,9 @@ function applyNuclearRetaliation({ targetName, actorId, defenderId = null, exclu
   const amount = Math.max(0, targetCountry.magnitude || 0);
   const result = applyOrderedTroopLoss(actorId, amount, excludeCountry);
   addPrivateLog(`${actor.name} ${action} nuclear power ${targetName}; retaliation follows the nuclear loss order and costs ${result.lost}/${amount} troops: ${describeLossResult(result)}.`, [actorId, defenderId]);
+  if (deferUnpaidRegionPenalty && result.remaining > 0) {
+    addFutureRegionBonusPenalty(actorId, result.remaining, `unpaid retaliation from ${targetName}`);
+  }
 
   if (!defenderId || defenderId === actorId) return;
   for (const nuclearCountry of result.nuclearSources) {
@@ -1299,7 +1400,9 @@ function renderSummary() {
   $("summaryGrid").innerHTML = active.map((p) => {
     const owned = ownedCountries(p.id);
     const troopCount = owned.reduce((sum, country) => sum + countryTroops(country.name), 0) + antarcticaTroops(p.id);
-    return `<div class="summary-card"><strong>${p.name}</strong><span>${owned.length} countries · ${troopCount} troops · ${antarcticaTroops(p.id)} in Antarctica · ${p.reserve} unplaced recruits · ${p.carry.toFixed(2)} carry</span></div>`;
+    const nuclearPenalty = Number(p.nuclearRecruitPenaltyRemaining || 0);
+    const penaltyText = nuclearPenalty > 0 ? ` · ${nuclearPenalty} nuclear start penalty left` : "";
+    return `<div class="summary-card"><strong>${p.name}</strong><span>${owned.length} countries · ${troopCount} troops · ${antarcticaTroops(p.id)} in Antarctica · ${p.reserve} unplaced recruits · ${p.carry.toFixed(2)} carry${penaltyText}</span></div>`;
   }).join("");
 }
 
@@ -2325,6 +2428,7 @@ function render() {
   $("setupView").classList.toggle("hidden", Boolean(game) || !setupMode);
   $("gameView").classList.toggle("hidden", !game);
   $("headerGameIdBox").classList.toggle("hidden", !game || !onlineGameId);
+  $("forfeitButton").classList.toggle("hidden", !game || !sessionPlayer() || sessionPlayer()?.eliminated || game.phase === "gameover");
   rememberOnlineGameId(onlineGameId);
   if (!game) {
     $("statusLine").textContent = setupMode ? "Set up a new online game" : "Create or load an online game";
@@ -2582,7 +2686,8 @@ function handleAttack(event) {
       actorId: attacker.id,
       defenderId,
       excludeCountry: conquered ? target : null,
-      action: "attacks"
+      action: conquered ? "conquers" : "attacks",
+      deferUnpaidRegionPenalty: conquered
     });
   }
   checkEliminations();
@@ -2617,7 +2722,8 @@ function handleLimitedAttack(attacker, from, target) {
           targetName: target,
           actorId: attacker.id,
           excludeCountry: target,
-          action: "claims"
+          action: "claims",
+          deferUnpaidRegionPenalty: true
         });
         checkEliminations();
         refreshRegionControlAnnouncements();
@@ -2657,7 +2763,8 @@ function handleLimitedAttack(attacker, from, target) {
       actorId: attacker.id,
       defenderId,
       excludeCountry: conquered ? target : null,
-      action: "attacks"
+      action: conquered ? "conquers" : "attacks",
+      deferUnpaidRegionPenalty: conquered
     });
   }
   checkEliminations();
@@ -2774,6 +2881,7 @@ function bindEvents() {
   $("refreshGameButton").addEventListener("click", async () => {
     await refreshOnlineGame({ forceRender: true });
   });
+  $("forfeitButton").addEventListener("click", forfeitCurrentSessionPlayer);
   $("loadOnlineGameButton").addEventListener("click", () => loadOnlineGame());
   $("copyOnlineGameIdButton").addEventListener("click", async () => {
     if (!onlineGameId) {
@@ -2927,7 +3035,8 @@ function bindEvents() {
         targetName: target,
         actorId: player.id,
         excludeCountry: target,
-        action: "claims"
+        action: "claims",
+        deferUnpaidRegionPenalty: true
       });
       checkEliminations();
     }
