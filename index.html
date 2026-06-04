@@ -139,10 +139,13 @@
         <section id="planningTab" class="tab-view hidden">
           <form id="placeForm" class="panel">
             <h3>Place Recruits</h3>
+            <p id="planningSubmitStatus" class="note"></p>
             <label>Player <select id="placePlayer"></select></label>
             <label>Country <select id="placeCountry"></select></label>
             <label>Troops <input id="placeAmount" type="number" min="1" value="1"></label>
-            <button type="submit" class="primary">Place</button>
+            <button type="submit" class="primary">Add to Plan</button>
+            <div id="planningDraftList" class="note"></div>
+            <button id="submitRecruitPlanButton" type="button" class="primary">Submit Recruit Plan</button>
           </form>
 
           <div class="panel player-map-panel">
@@ -249,6 +252,6 @@
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="supabase-config.js?v=20260531-online-save-1"></script>
-    <script src="app.js?v=20260603-nuclear-retaliation-penalty-1"></script>
+    <script src="app.js?v=20260603-recruit-plan-submit-1"></script>
   </body>
 </html>

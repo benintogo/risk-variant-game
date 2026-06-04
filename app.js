@@ -4,6 +4,7 @@ const SAVE_KEY = "risk-variant-moderator-v1";
 const ONLINE_GAME_ID_KEY = "risk-variant-online-game-id";
 const SESSION_ROLE_KEY = "risk-variant-session-role";
 const SESSION_PLAYER_KEY = "risk-variant-session-player-id";
+const RECRUIT_DRAFT_KEY_PREFIX = "risk-variant-recruit-draft";
 
 const REGION_BONUSES = {
   "Eastern Europe": 11,
@@ -299,6 +300,7 @@ function blankState() {
     turnHadAction: false,
     consecutivePasses: [],
     regionControlAnnouncements: {},
+    recruitPlans: {},
     turnHistory: [],
     timelineIndex: 0
   };
@@ -486,12 +488,37 @@ function saveLocalGame() {
   if (game) localStorage.setItem(SAVE_KEY, JSON.stringify(game));
 }
 
+function recruitDraftKey(playerId = sessionPlayerId) {
+  return `${RECRUIT_DRAFT_KEY_PREFIX}-${onlineGameId || "local"}-${game?.round || 0}-${playerId || "unknown"}`;
+}
+
+function loadRecruitDraft(playerId = sessionPlayerId) {
+  try {
+    return JSON.parse(localStorage.getItem(recruitDraftKey(playerId)) || "{}");
+  } catch {
+    return {};
+  }
+}
+
+function saveRecruitDraft(draft, playerId = sessionPlayerId) {
+  localStorage.setItem(recruitDraftKey(playerId), JSON.stringify(draft || {}));
+}
+
+function clearRecruitDraft(playerId = sessionPlayerId) {
+  localStorage.removeItem(recruitDraftKey(playerId));
+}
+
+function recruitDraftTotal(draft) {
+  return Object.values(draft || {}).reduce((sum, value) => sum + Number(value || 0), 0);
+}
+
 function normalizeLoadedGame() {
   if (!game) return;
   game.turnStage ||= "attack";
   game.turnHadAction = Boolean(game.turnHadAction);
   game.consecutivePasses ||= [];
   game.regionControlAnnouncements ||= {};
+  game.recruitPlans ||= {};
   game.pendingTransfers ||= [];
   game.antarcticaTroops ||= {};
   game.antarcticaUnclaimed ||= 0;
@@ -740,6 +767,32 @@ async function refreshOnlineGame({ forceRender = false } = {}) {
   render();
 }
 
+async function loadLatestOnlineStateForMerge() {
+  if (!onlineClient || !onlineGameId) return false;
+  const stateColumn = onlineStateColumn();
+  const shortIdColumn = onlineShortIdColumn();
+  let { data, error } = await onlineClient
+    .from(onlineTableName())
+    .select(`${stateColumn}, id, ${shortIdColumn}`)
+    .eq(shortIdColumn, onlineGameId.toUpperCase())
+    .maybeSingle();
+  if (error || !data) {
+    const fallback = await onlineClient
+      .from(onlineTableName())
+      .select(`${stateColumn}, id, ${shortIdColumn}`)
+      .eq("id", onlineGameId)
+      .single();
+    data = fallback.data;
+    error = fallback.error;
+  }
+  if (error || !data?.[stateColumn]) return false;
+  game = data[stateColumn];
+  normalizeLoadedGame();
+  lastOnlineStateText = gameStateText();
+  saveLocalGame();
+  return true;
+}
+
 function startOnlineRefresh() {
   if (onlineRefreshTimer) return;
   onlineRefreshTimer = setInterval(refreshOnlineGame, 20000);
@@ -970,6 +1023,7 @@ function startNewRound(reason) {
   if (totalAwarded > 0) {
     game.phase = "planning";
     game.planningPlayerId = null;
+    game.recruitPlans = {};
     resetMapView(false, currentPlanningPlayer() || visibleSessionPlayer());
     showTab(preferredOpenTab());
   } else {
@@ -1357,14 +1411,28 @@ function playersWithRecruits() {
     .sort((a, b) => a.name.localeCompare(b.name));
 }
 
+function playerRecruitPlan(playerId) {
+  return game?.recruitPlans?.[playerId] || null;
+}
+
+function playerHasSubmittedRecruitPlan(playerId) {
+  const player = game?.players?.find((candidate) => candidate.id === playerId);
+  if (!player || player.reserve <= 0) return true;
+  return Boolean(playerRecruitPlan(playerId)?.submitted);
+}
+
+function playersAwaitingRecruitPlans() {
+  return playersWithRecruits().filter((player) => !playerHasSubmittedRecruitPlan(player.id));
+}
+
 function currentPlanningPlayer() {
   const player = sessionPlayer();
-  if (player && player.reserve > 0 && !player.eliminated) return player;
+  if (player && player.reserve > 0 && !player.eliminated && !playerHasSubmittedRecruitPlan(player.id)) return player;
   return null;
 }
 
 function allRecruitsPlaced() {
-  return activePlayers().every((player) => player.reserve <= 0);
+  return activePlayers().every((player) => player.reserve <= 0 || playerHasSubmittedRecruitPlan(player.id));
 }
 
 function renderSetupNames() {
@@ -1387,14 +1455,16 @@ function renderSummary() {
   const player = currentPlayer();
   const self = sessionPlayer();
   const winningPlayer = winner();
-  $("statusLine").classList.toggle("recruit-alert", Boolean(game && game.phase === "planning" && self?.reserve > 0));
+  $("statusLine").classList.toggle("recruit-alert", Boolean(game && game.phase === "planning" && self?.reserve > 0 && !playerHasSubmittedRecruitPlan(self.id)));
   $("statusLine").textContent = game
     ? winningPlayer
       ? `Game over · ${winningPlayer.name} wins`
-      : game.phase === "planning" && self?.reserve > 0
+      : game.phase === "planning" && self?.reserve > 0 && !playerHasSubmittedRecruitPlan(self.id)
       ? `Place your ${self.reserve} recruit${self.reserve === 1 ? "" : "s"} now · click one of your countries on the map`
+      : game.phase === "planning" && self?.reserve > 0
+      ? "Recruit plan submitted · waiting for the other players"
       : game.phase === "planning"
-      ? `Recruit placement is underway · ${playersWithRecruits().length} player${playersWithRecruits().length === 1 ? "" : "s"} still placing`
+      ? `Recruit placement is underway · ${playersAwaitingRecruitPlans().length} player${playersAwaitingRecruitPlans().length === 1 ? "" : "s"} still placing`
       : `Player view · ${sessionPlayer()?.name || "Unknown player"} · Round ${game.round} · ${game.phase === "planning" ? "planning phase" : `${player?.name || "No one"}'s turn`}`
     : `${countries.length} countries loaded`;
   $("summaryGrid").innerHTML = active.map((p) => {
@@ -1445,10 +1515,140 @@ function renderBoard() {
 
 function renderPlanning() {
   const planningPlayer = currentPlanningPlayer();
+  const self = sessionPlayer();
   setOptions($("placePlayer"), planningPlayer ? [planningPlayer] : [], (p) => `${p.name} (${p.reserve} recruits)`, (p) => p.id);
-  $("placeForm").classList.toggle("hidden", !planningPlayer);
+  $("placeForm").classList.toggle("hidden", !(self?.reserve > 0 || planningPlayer));
+  renderRecruitDraftStatus(planningPlayer);
   updatePlaceCountries();
   renderPlanningVisible();
+}
+
+function renderRecruitDraftStatus(player) {
+  const status = $("planningSubmitStatus");
+  const list = $("planningDraftList");
+  const submitButton = $("submitRecruitPlanButton");
+  if (!status || !list || !submitButton) return;
+  if (!player) {
+    const self = sessionPlayer();
+    status.textContent = self && playerHasSubmittedRecruitPlan(self.id)
+      ? "Your recruit plan has been submitted. Recruits will appear on the board once every active player has submitted."
+      : "No recruits to place right now.";
+    list.textContent = "";
+    submitButton.disabled = true;
+    return;
+  }
+  const draft = loadRecruitDraft(player.id);
+  const total = recruitDraftTotal(draft);
+  const remaining = Math.max(0, player.reserve - total);
+  const entries = Object.entries(draft).filter(([, amount]) => Number(amount) > 0).sort(([a], [b]) => a.localeCompare(b));
+  status.textContent = `${total}/${player.reserve} recruits planned · ${remaining} remaining.`;
+  list.textContent = entries.length
+    ? `Plan: ${entries.map(([country, amount]) => `${amount} to ${country}`).join("; ")}`
+    : "No recruits planned yet.";
+  submitButton.disabled = player.reserve <= 0 || remaining !== 0;
+}
+
+function validRecruitDestinations(playerId) {
+  const owned = ownedCountries(playerId);
+  const destinations = new Set(owned.map((country) => country.name));
+  if (owned.some((country) => ANTARCTICA_CONNECTIONS.has(country.name))) destinations.add(ANTARCTICA_NAME);
+  return destinations;
+}
+
+function validateRecruitDraft(playerId, draft) {
+  const player = game.players.find((candidate) => candidate.id === playerId);
+  if (!player || player.eliminated || game.phase !== "planning") return { ok: false, message: "Recruit placement is not open." };
+  if (player.reserve <= 0) return { ok: false, message: "You do not have recruits to place." };
+  const destinations = validRecruitDestinations(playerId);
+  const clean = {};
+  let total = 0;
+  for (const [country, rawAmount] of Object.entries(draft || {})) {
+    const amount = Number(rawAmount || 0);
+    if (!Number.isInteger(amount) || amount < 0) return { ok: false, message: "Recruit amounts must be whole numbers." };
+    if (amount === 0) continue;
+    if (!destinations.has(country)) return { ok: false, message: `${country} is no longer available for recruit placement.` };
+    clean[country] = (clean[country] || 0) + amount;
+    total += amount;
+  }
+  if (total !== player.reserve) return { ok: false, message: `Your plan must assign exactly ${player.reserve} recruits.` };
+  return { ok: true, placements: clean };
+}
+
+function placementsEqual(a = {}, b = {}) {
+  const left = Object.entries(a).filter(([, amount]) => Number(amount) > 0).sort(([x], [y]) => x.localeCompare(y));
+  const right = Object.entries(b).filter(([, amount]) => Number(amount) > 0).sort(([x], [y]) => x.localeCompare(y));
+  return JSON.stringify(left) === JSON.stringify(right);
+}
+
+function wait(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function preserveOnlineRecruitPlan(playerId, placements) {
+  if (!onlineClient || !onlineGameId) return;
+  await wait(900);
+  const loaded = await loadLatestOnlineStateForMerge();
+  if (!loaded || game.phase !== "planning") return;
+  const plan = playerRecruitPlan(playerId);
+  if (plan?.submitted && placementsEqual(plan.placements, placements)) return;
+  game.recruitPlans ||= {};
+  game.recruitPlans[playerId] = {
+    submitted: true,
+    placements,
+    round: game.round,
+    submittedAt: new Date().toISOString()
+  };
+  if (allRecruitsPlaced()) {
+    resolvePlanning();
+  } else {
+    saveGame();
+  }
+  await saveOnlineGame({ quiet: true });
+}
+
+async function submitRecruitPlan() {
+  const player = currentPlanningPlayer();
+  if (!player) {
+    alert("You do not have a recruit plan to submit right now.");
+    return;
+  }
+  const localDraft = loadRecruitDraft(player.id);
+  if (onlineClient && onlineGameId) {
+    setOnlineStatus("Checking the latest online game before submitting recruits...");
+    await loadLatestOnlineStateForMerge();
+  }
+  const latestPlayer = currentPlanningPlayer();
+  if (!latestPlayer || latestPlayer.id !== player.id) {
+    alert("Recruit placement changed while you were submitting. Please review the latest game state.");
+    render();
+    return;
+  }
+  const validation = validateRecruitDraft(player.id, localDraft);
+  if (!validation.ok) {
+    alert(validation.message);
+    render();
+    return;
+  }
+  game.recruitPlans ||= {};
+  game.recruitPlans[player.id] = {
+    submitted: true,
+    placements: validation.placements,
+    round: game.round,
+    submittedAt: new Date().toISOString()
+  };
+  clearRecruitDraft(player.id);
+  addPrivateLog(`${player.name} submits a recruit plan.`, [player.id]);
+  if (allRecruitsPlaced()) {
+    resolvePlanning();
+    if (onlineClient && onlineGameId) await saveOnlineGame({ quiet: true });
+    return;
+  }
+  saveGame();
+  if (onlineClient && onlineGameId) {
+    await saveOnlineGame({ quiet: true });
+    await preserveOnlineRecruitPlan(player.id, validation.placements);
+  }
+  render();
 }
 
 function updatePlaceCountries() {
@@ -1468,7 +1668,9 @@ function updatePlaceCountries() {
     (country) => country.name
   );
   const player = game.players.find((candidate) => candidate.id === playerId);
-  const max = player?.reserve || 0;
+  const draft = loadRecruitDraft(playerId);
+  const remaining = Math.max(0, (player?.reserve || 0) - recruitDraftTotal(draft));
+  const max = remaining;
   $("placeAmount").max = max;
   $("placeAmount").disabled = max < 1;
   $("placeAmount").value = Math.min(Math.max(1, Number($("placeAmount").value || 1)), Math.max(1, max));
@@ -1980,12 +2182,14 @@ function contextualActionHtml(country, playerId, detailsId) {
   if (game.phase === "planning") {
     const player = sessionPlayer();
     if (!player || player.id !== playerId || !isOwnCountry || player.reserve <= 0) return "";
+    const remaining = Math.max(0, player.reserve - recruitDraftTotal(loadRecruitDraft(player.id)));
+    if (remaining <= 0) return "";
     return `
       <form class="map-action-panel" data-context-action="place-recruits" data-country="${country.name}">
         <label>Recruits
-          <input name="amount" type="number" min="1" max="${player.reserve}" value="1">
+          <input name="amount" type="number" min="1" max="${remaining}" value="1">
         </label>
-        <button type="submit" class="primary">Place here</button>
+        <button type="submit" class="primary">Add to Plan</button>
       </form>
     `;
   }
@@ -2617,20 +2821,43 @@ function resolvePlanning() {
     alert("The game is over.");
     return;
   }
-  const stillUnplaced = activePlayers().filter((player) => player.reserve > 0);
-  if (stillUnplaced.length) {
-    alert(`Place all recruits before beginning turns. Still unplaced: ${stillUnplaced.map((player) => player.name).join(", ")}.`);
+  const stillUnsubmitted = playersAwaitingRecruitPlans();
+  if (stillUnsubmitted.length) {
+    alert(`Recruit plans are still needed from: ${stillUnsubmitted.map((player) => player.name).join(", ")}.`);
     return;
   }
+  applySubmittedRecruitPlans();
   game.phase = "turn";
   game.turnStage = "attack";
   game.turnHadAction = false;
   game.consecutivePasses = [];
+  game.recruitPlans = {};
   addLog(`Round ${game.round} action turns begin.`);
   resetMapView(false);
   saveGame();
   showTab("turn");
   render();
+}
+
+function applySubmittedRecruitPlans() {
+  for (const player of activePlayers()) {
+    const plan = playerRecruitPlan(player.id);
+    if (!plan?.submitted || player.reserve <= 0) continue;
+    const placements = plan.placements || {};
+    let placed = 0;
+    for (const [country, rawAmount] of Object.entries(placements)) {
+      const amount = Math.max(0, Number(rawAmount || 0));
+      if (amount <= 0) continue;
+      placed += amount;
+      if (isAntarctica(country)) {
+        game.antarcticaTroops[player.id] = antarcticaTroops(player.id) + amount;
+      } else if (game.ownership[country] === player.id) {
+        game.troops[country] = countryTroops(country) + amount;
+      }
+    }
+    player.reserve = Math.max(0, player.reserve - placed);
+    addPrivateLog(`${player.name}'s recruit plan resolves: ${Object.entries(placements).filter(([, amount]) => Number(amount) > 0).sort(([a], [b]) => a.localeCompare(b)).map(([country, amount]) => `${amount} to ${country}`).join("; ")}.`, [player.id]);
+  }
 }
 
 function resolveEndOfTurnTransfers() {
@@ -2953,24 +3180,17 @@ function bindEvents() {
     const player = game.players.find((p) => p.id === $("placePlayer").value);
     const country = $("placeCountry").value;
     const amount = Number($("placeAmount").value);
-    if (!player || !country || amount < 1 || amount > player.reserve) {
-      alert("That recruit placement is not available.");
+    const draft = loadRecruitDraft(player?.id);
+    const remaining = Math.max(0, (player?.reserve || 0) - recruitDraftTotal(draft));
+    if (!player || !country || amount < 1 || amount > remaining) {
+      alert("That recruit placement is not available for your current plan.");
       return;
     }
-    player.reserve -= amount;
-    if (isAntarctica(country)) {
-      game.antarcticaTroops[player.id] = antarcticaTroops(player.id) + amount;
-    } else {
-      game.troops[country] = countryTroops(country) + amount;
-    }
-    addPrivateLog(`${player.name} places ${amount} recruits in ${country}.`, [player.id]);
-    if (game.phase === "planning" && allRecruitsPlaced()) {
-      resolvePlanning();
-      return;
-    }
-    saveGame();
+    draft[country] = Number(draft[country] || 0) + amount;
+    saveRecruitDraft(draft, player.id);
     render();
   });
+  $("submitRecruitPlanButton").addEventListener("click", () => submitRecruitPlan());
   $("transferForm").addEventListener("submit", (event) => {
     event.preventDefault();
     const player = currentPlayer();
