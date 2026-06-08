@@ -59,9 +59,7 @@ At the beginning of each new round, recruits are calculated automatically.
 
 If no player receives recruits, the recruit placement screen is skipped and turns begin immediately.
 
-If any player receives recruits, all recruits must be placed before action turns begin.
-
-Recruit placement is currently handled player by player. The active recruit player sees their own player map while placing recruits, then the app advances to the next player with recruits remaining.
+If any player receives recruits, all players with recruits submit recruit plans independently. Recruits are not added to the board immediately. Once every active player with recruits has submitted a plan, all recruit placements resolve together and action turns begin.
 
 ## Recruits
 
@@ -83,6 +81,20 @@ Player receives 2 recruits
 ```
 
 Region bonuses are added after base recruits.
+
+### Nuclear Recruit Penalties
+
+Region bonus recruits can be withheld by nuclear penalties.
+
+If a player starts the game on a nuclear country, they receive a penalty equal to that country's magnitude. The first region bonus recruits they would receive are withheld until the penalty is fully paid.
+
+Example: A player starts on a magnitude 9 nuclear country. Across future rounds, the first 9 region bonus recruits they earn are withheld. If they earn 4 region bonus recruits in one round and 6 in a later round, they receive 0 from the first bonus, 1 from the second bonus, and the penalty is then complete.
+
+If a player claims or conquers a nuclear country and nuclear retaliation removes fewer troops than the country's magnitude, the unpaid remainder becomes the same kind of future region bonus penalty.
+
+Example: A player conquers a magnitude 9 nuclear country, but only loses 6 troops to retaliation. The remaining 3 losses are converted into future region bonus withholding.
+
+Nuclear recruit penalties only withhold region bonus recruits. They do not reduce magnitude-based recruits.
 
 ## Region Bonuses
 
@@ -119,9 +131,17 @@ Recruits may be placed in countries owned by that player.
 
 Recruits may also be placed in Antarctica if the player owns at least one country eligible to transfer to or from Antarctica.
 
-All recruits must be placed before action turns begin.
+All recruits must be assigned before a player can submit their plan.
 
-For now, recruit placement is not simultaneous in the app. Players place in alphabetical player order among players who have recruits available.
+In the app:
+
+1. During the Place Recruits phase, click one of your owned countries on the map or use the Place Recruits form.
+2. Add recruits to your plan.
+3. Continue until your plan assigns all recruits available to you.
+4. Click **Submit Recruit Plan**.
+5. Wait for the other active players to submit.
+
+Recruits appear on the board only after every active player with recruits has submitted a plan. This lets players plan at the same time without overwriting each other's placements.
 
 ## Player Visibility
 
@@ -166,6 +186,8 @@ On a turn, a player may do any number of the following:
 A player may attack or claim as many times as they want during a single turn, as long as each action is legal.
 
 At least 1 troop must always remain behind in the origin country when attacking, claiming, or transferring.
+
+The player map remains clickable even when it is not your turn, but action controls only appear when you are allowed to act.
 
 ## Claiming Unowned Countries
 
@@ -326,6 +348,8 @@ If a country is reduced to 0 troops by nuclear retaliation, that player loses th
 
 If the full retaliation amount has not yet been paid, losses continue to the next country in the order.
 
+If the retaliation happened because the player claimed or conquered the nuclear country, and the full amount still cannot be paid in troop losses, the unpaid remainder becomes a future region bonus recruit penalty.
+
 ## Nuclear Counter-Retaliation
 
 If a nuclear retaliation against an attacking player removes troops from one of that attacker's nuclear countries, the attacker may choose to counter-retaliate against the defender.
@@ -351,16 +375,29 @@ If only one active player remains, the game ends immediately and that player win
 
 Eliminating another player does not automatically end the current player's turn. The player who made the elimination may keep attacking, claiming, or transferring unless the elimination leaves only one active player and ends the game.
 
-## Moderator Notes
+## Forfeiting
 
-The app tracks hidden information, dice rolls, recruit carryover, region control, Antarctica troops, nuclear retaliation chains, and turn order.
+A player may forfeit from the game controls.
 
-The moderator board contains a full-information table and a full-information world map.
+When a player forfeits:
+
+- All of their troops outside Antarctica are removed.
+- All countries they owned become unowned.
+- They stop receiving recruits and are no longer active.
+- Their troops in Antarctica remain in Antarctica.
+
+If the forfeiting player was taking a turn, the snake order advances cleanly to the next active player. If only one active player remains after the forfeit, that player wins.
+
+## Online and Hidden Information Notes
+
+The app tracks hidden information, dice rolls, recruit carryover, region control, Antarctica troops, nuclear retaliation chains, forfeit state, simultaneous recruit plans, and turn order.
+
+The game is designed for hostless online play. Players enter the shared Game ID and their exact player name to access their own view.
 
 The player map shows only what the current player is allowed to know.
 
 The player map automatically resets for the next player at the end of each turn.
 
-The roll log records automatic dice and major game events.
+The log is filtered by visibility. Players see only the actions and events they are allowed to know. Private events such as hidden attacks, recruit details, region control changes, and eliminations are not automatically public to every player.
 
-When the game ends, the moderator tab shows an endgame timeline map. The timeline can be scrubbed with a slider to see the world map at initial setup, after each completed turn, and at the final game state.
+When the game ends, the full-information map can show an endgame timeline. The timeline can be scrubbed with a slider to see the world map at initial setup, after completed turns, and at the final game state.

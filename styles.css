@@ -480,9 +480,9 @@ form.map-action-panel {
   width: 100%;
 }
 
-.log-dock {
+.log-dock,
+.manual-dock {
   position: fixed;
-  left: 18px;
   bottom: 16px;
   z-index: 20;
   min-width: 92px;
@@ -490,7 +490,16 @@ form.map-action-panel {
   box-shadow: 0 10px 24px rgba(15, 23, 42, 0.18);
 }
 
-#logTab {
+.log-dock {
+  left: 18px;
+}
+
+.manual-dock {
+  left: 122px;
+}
+
+#logTab,
+#manualTab {
   position: fixed;
   inset: 0;
   z-index: 30;
@@ -500,15 +509,40 @@ form.map-action-panel {
   background: rgba(15, 23, 42, 0.28);
 }
 
-#logTab.hidden {
+#logTab.hidden,
+#manualTab.hidden {
   display: none;
 }
 
-.log-modal {
+.log-modal,
+.manual-modal {
   width: min(780px, calc(100vw - 36px));
   max-height: min(520px, calc(100vh - 72px));
   overflow: auto;
   box-shadow: 0 18px 42px rgba(15, 23, 42, 0.24);
+}
+
+.manual-modal {
+  width: min(900px, calc(100vw - 36px));
+}
+
+.manual-content {
+  display: grid;
+  gap: 10px;
+  line-height: 1.45;
+}
+
+.manual-content h3 {
+  margin: 8px 0 0;
+}
+
+.manual-content p,
+.manual-content ol {
+  margin: 0;
+}
+
+.manual-content ol {
+  padding-left: 22px;
 }
 
 #playerMap,

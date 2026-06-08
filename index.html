@@ -246,12 +246,55 @@
             <ol id="logList" class="log-list"></ol>
           </div>
         </section>
+        <section id="manualTab" class="tab-view hidden">
+          <div class="panel manual-modal">
+            <div class="panel-header">
+              <h2>Gameplay Manual</h2>
+              <button id="closeManualButton" type="button">Close</button>
+            </div>
+            <div class="manual-content">
+              <h3>Goal</h3>
+              <p>Win by being the last active player remaining. A player is eliminated when they have no owned countries or no troops in owned countries. Antarctica troops do not keep a player active.</p>
+
+              <h3>Round Flow</h3>
+              <ol>
+                <li>At the start of a new round, recruits are calculated automatically.</li>
+                <li>If anyone receives recruits, players submit recruit plans independently.</li>
+                <li>Recruits are placed on the board only after every active player with recruits has submitted.</li>
+                <li>Turns then continue in the same alphabetical snake order. Round endings never reset the order.</li>
+              </ol>
+
+              <h3>Placing Recruits</h3>
+              <p>Click one of your owned countries on the map or use the Place Recruits box. Add all recruits to your plan, then click <strong>Submit Recruit Plan</strong>. You can place recruits in Antarctica if you own a country eligible to transfer there.</p>
+
+              <h3>Your Turn</h3>
+              <p>Click one of your countries on the map to see available actions. You may claim unowned bordering countries, attack legal targets, and then make transfers after pressing <strong>Finished Attacking</strong>. Always leave at least 1 troop behind in an origin country.</p>
+
+              <h3>Visibility</h3>
+              <p>Your map shows your countries, bordering countries, network-connected countries, visible Antarctica access, and countries in the same regions. Same-region-only countries reveal only limited information. The log also shows only events you are allowed to know.</p>
+
+              <h3>Attacks</h3>
+              <p>Normal land attacks use up to 3 attack dice. Maritime attacks use up to 2. Regional limited attacks use 1. Ties go to the defender. If you conquer a country, you must move troops in while leaving 1 behind.</p>
+
+              <h3>Nuclear Rules</h3>
+              <p>Attacking, claiming, or conquering a nuclear country can trigger retaliation equal to that country's magnitude. If you claim or conquer a nuclear country and cannot lose the full retaliation amount in troops, the unpaid remainder becomes future region bonus withholding.</p>
+              <p>Starting on a nuclear country also creates a region bonus recruit penalty equal to that starting country's magnitude.</p>
+
+              <h3>Antarctica</h3>
+              <p>Antarctica cannot be owned or attacked. Multiple players can have troops there. It is visible and usable only if you own an eligible Antarctica-connected country.</p>
+
+              <h3>Forfeit</h3>
+              <p>Forfeiting removes your troops outside Antarctica and makes your countries unowned. Your Antarctica troops remain there, but you are no longer active.</p>
+            </div>
+          </div>
+        </section>
         <button id="openLogButton" type="button" class="log-dock">Log</button>
+        <button id="openManualButton" type="button" class="manual-dock">Manual</button>
       </section>
     </main>
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="supabase-config.js?v=20260531-online-save-1"></script>
-    <script src="app.js?v=20260603-recruit-plan-submit-1"></script>
+    <script src="app.js?v=20260608-game-manual-tab-1"></script>
   </body>
 </html>

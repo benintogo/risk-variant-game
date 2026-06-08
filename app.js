@@ -2612,6 +2612,7 @@ function canOpenTab(name) {
   if (name === "moderator") return false;
   if (name === "planning") return game.phase === "planning";
   if (name === "turn") return game.phase !== "gameover";
+  if (name === "manual") return true;
   return name === "log";
 }
 
@@ -3155,6 +3156,8 @@ function bindEvents() {
     $("logTab").classList.remove("hidden");
   });
   $("closeLogButton").addEventListener("click", () => $("logTab").classList.add("hidden"));
+  $("openManualButton").addEventListener("click", () => $("manualTab").classList.remove("hidden"));
+  $("closeManualButton").addEventListener("click", () => $("manualTab").classList.add("hidden"));
   bindMapControls();
   bindModeratorMapControls();
   $("boardSearch").addEventListener("input", renderBoard);
