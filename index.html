@@ -3,192 +3,298 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>World Cup Bracket Pool</title>
+    <title>Risk Variant Game</title>
     <link rel="stylesheet" href="styles.css">
   </head>
   <body>
-    <div class="page-shell">
-      <header class="hero">
-        <div class="hero-copy">
-          <p class="eyebrow">Bracket Pool Dashboard</p>
-          <h1>Track every World Cup bracket in one place.</h1>
-          <p class="hero-text">
-            The app uses your saved 2026 pool, applies your custom point values, updates group standings, and shows each person's odds of winning the pool as the tournament moves along.
-          </p>
-          <p id="statusLine" class="status-line">Your saved 2026 pool is ready below.</p>
-          <div class="hero-actions">
-            <button id="loadSampleButton" type="button" class="primary">Load Saved 2026 Pool</button>
-            <button id="runSimulationsButton" type="button">Recalculate Odds</button>
+    <header class="topbar">
+      <div>
+        <h1>Risk Variant Game</h1>
+        <p id="statusLine">Loading map data...</p>
+      </div>
+      <div class="top-actions">
+        <div id="headerGameIdBox" class="header-game-id hidden">
+          <label>
+            Game ID
+            <input id="activeOnlineGameId" type="text" readonly>
+          </label>
+          <button id="copyOnlineGameIdButton" type="button">Copy</button>
+        </div>
+        <button id="refreshGameButton" type="button">Refresh</button>
+        <button id="saveButton" type="button">Save</button>
+        <button id="forfeitButton" type="button" class="danger hidden">Forfeit</button>
+        <button id="mainMenuButton" type="button">Main Menu</button>
+      </div>
+    </header>
+
+    <main>
+      <section id="entryView" class="panel online-panel">
+        <div class="panel-header">
+          <div>
+            <h2>Play Online</h2>
+            <p id="onlineStatus" class="note">Supabase is not connected yet.</p>
           </div>
         </div>
-      </header>
-
-      <main class="layout">
-        <div hidden aria-hidden="true">
-          <input id="scoringInput" type="file" accept=".json,.csv" tabindex="-1">
-          <input id="entriesInput" type="file" accept=".json,.csv" multiple tabindex="-1">
-          <input id="resultsInput" type="file" accept=".json,.csv" tabindex="-1">
+        <div class="entry-actions">
+          <button id="showNewGameButton" type="button" class="primary">Create New Game</button>
         </div>
+        <div class="online-row">
+          <label>
+            Game ID
+            <input id="onlineGameId" type="text" placeholder="Paste a shared game ID">
+          </label>
+          <label id="joinPlayerNameLabel">
+            Your player name
+            <input id="joinPlayerName" type="text" placeholder="Exact player name">
+          </label>
+          <button id="loadOnlineGameButton" type="button">Enter Game</button>
+        </div>
+      </section>
 
-        <section class="summary-grid" id="summaryGrid"></section>
+      <section id="setupView" class="panel hidden">
+        <h2>New Game</h2>
+        <div class="setup-row">
+          <label>
+            Number of players
+            <input id="playerCount" type="number" min="2" max="20" value="4">
+          </label>
+          <button id="makeNamesButton" type="button">Set Names</button>
+        </div>
+        <div id="playerNames" class="name-grid"></div>
+        <label class="setup-player-name">
+          Your player name
+          <input id="setupPlayerName" type="text" value="Player 1">
+        </label>
+        <button id="startGameButton" type="button" class="primary">Start Game</button>
+      </section>
 
-        <section class="panel">
-          <div class="panel-heading">
-            <div>
-              <p class="eyebrow">Standings Updater</p>
-              <h2>Current Group Tables</h2>
-            </div>
-            <div class="hero-actions compact-actions">
-              <select id="standingsViewSelect" aria-label="Choose a standings table to review">
-                <option value="A">Group A</option>
-                <option value="B">Group B</option>
-                <option value="C">Group C</option>
-                <option value="D">Group D</option>
-                <option value="E">Group E</option>
-                <option value="F">Group F</option>
-                <option value="G">Group G</option>
-                <option value="H">Group H</option>
-                <option value="I">Group I</option>
-                <option value="J">Group J</option>
-                <option value="K">Group K</option>
-                <option value="L">Group L</option>
-                <option value="THIRD">Best Third-Place Table</option>
-              </select>
-            </div>
-          </div>
-          <div class="table-wrap">
-            <table>
-              <thead id="standingsTableHead"></thead>
-              <tbody id="standingsTableBody"></tbody>
-            </table>
-          </div>
-        </section>
+      <section id="gameView" class="hidden">
+        <nav class="tabs" aria-label="Views">
+          <button class="tab" type="button" data-tab="planning">Place Recruits</button>
+          <button class="tab active" type="button" data-tab="turn">Turn Actions</button>
+        </nav>
 
-        <section class="panel">
-          <div class="panel-heading">
-            <div>
-              <p class="eyebrow">Slot Tracker</p>
-              <h2>Bracket Slot Picks</h2>
+        <section id="moderatorTab" class="tab-view">
+          <div class="summary-grid" id="summaryGrid"></div>
+          <div class="panel world-map-panel">
+            <div class="panel-header">
+              <h2>World Map</h2>
             </div>
-            <div class="hero-actions compact-actions">
-              <select id="slotStageSelect" aria-label="Choose a round to review">
-                <option value="R32">Round of 32</option>
-                <option value="R16">Round of 16</option>
-                <option value="QF">Quarterfinals</option>
-                <option value="SF">Semifinals</option>
-                <option value="F">Finalists</option>
-                <option value="C">Champion</option>
-              </select>
-            </div>
-          </div>
-          <div class="table-wrap">
-            <table>
-              <thead id="slotAssignmentsHead"></thead>
-              <tbody id="slotAssignmentsBody"></tbody>
-            </table>
-          </div>
-        </section>
-
-        <section class="charts-grid">
-          <article class="panel">
-            <div class="panel-heading">
-              <div>
-                <p class="eyebrow">Standings</p>
-                <h2>Expected Points</h2>
+            <div class="map-layout moderator-map-layout">
+              <div class="map-shell" style="width: calc(100vw - 86px); max-width: none;">
+                <button id="resetModeratorMapButton" type="button" class="map-reset">Reset Map</button>
+                <svg id="moderatorMap" viewBox="0 0 1000 500" role="img" aria-label="Full information world map" style="width: 100%;"></svg>
+                <aside id="moderatorMapDetails" class="map-details map-details-inset" style="position: absolute; top: 58px; right: 14px; z-index: 3; width: 280px; max-height: 300px; overflow: auto;">
+                  <strong>World Map</strong>
+                  <p>Select a country on the map to see its full information.</p>
+                </aside>
               </div>
-              <p class="subtle">Based on simulated final scores from the current tournament state.</p>
             </div>
-            <div id="pointsChart" class="chart-block"></div>
-          </article>
-
-          <article class="panel">
-            <div class="panel-heading">
-              <div>
-                <p class="eyebrow">Win Probability</p>
-                <h2>Pool Title Probability</h2>
+          </div>
+          <div id="timelinePanel" class="panel world-map-panel hidden">
+            <div class="panel-header">
+              <h2>Endgame Timeline</h2>
+              <span id="timelineLabel" class="badge"></span>
+            </div>
+            <div class="map-layout moderator-map-layout">
+              <div class="map-shell" style="width: calc(100vw - 86px); max-width: none;">
+                <svg id="timelineMap" viewBox="0 0 1000 500" role="img" aria-label="Historical world map" style="width: 100%;"></svg>
+                <div class="timeline-controls">
+                  <input id="timelineSlider" type="range" min="0" max="0" value="0">
+                </div>
               </div>
-              <p class="subtle">Based on simulated outcomes for the unfinished bracket.</p>
-            </div>
-            <div id="oddsChart" class="chart-block"></div>
-          </article>
-        </section>
-
-        <section class="panel">
-          <div class="panel-heading">
-            <div>
-              <p class="eyebrow">Probability History</p>
-              <h2>Win Probability By Match</h2>
-            </div>
-            <div class="hero-actions compact-actions">
-              <button id="partialTimelineRecalcButton" type="button">Partial Recalculation</button>
-              <button id="fullTimelineRecalcButton" type="button">Full Recalculation</button>
             </div>
           </div>
-          <p class="subtle" id="timelineCacheStatus">Saved full-strength timeline snapshots will appear here.</p>
-          <div id="probabilityTimeline" class="timeline-block"></div>
-        </section>
-
-        <section class="panel">
-          <div class="panel-heading">
-            <div>
-              <p class="eyebrow">Points History</p>
-              <h2>Projected Points By Match</h2>
+          <div class="panel">
+            <div class="panel-header">
+              <h2>Board</h2>
+              <input id="boardSearch" type="search" placeholder="Search countries">
             </div>
-            <p class="subtle">Each point shows the projected final score after that completed match.</p>
-          </div>
-          <div id="projectedPointsTimeline" class="timeline-block"></div>
-          <div class="timeline-copy-label">Color-blind-friendly copy</div>
-          <div id="projectedPointsTimelineAccessible" class="timeline-block"></div>
-        </section>
-
-        <section class="panel">
-          <div class="panel-heading">
-            <div>
-              <p class="eyebrow">Leaderboard</p>
-              <h2>Entries</h2>
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Country</th>
+                    <th>Region</th>
+                    <th>Network</th>
+                    <th>Magnitude</th>
+                    <th>Owner</th>
+                    <th>Troops</th>
+                  </tr>
+                  <tr class="filter-row">
+                    <th><input id="filterCountry" type="search" placeholder="Filter country"></th>
+                    <th><input id="filterRegion" type="search" placeholder="Filter region"></th>
+                    <th><input id="filterNetwork" type="search" placeholder="Filter network"></th>
+                    <th><input id="filterMagnitude" type="search" placeholder="Filter magnitude"></th>
+                    <th><input id="filterOwner" type="search" placeholder="Filter owner"></th>
+                    <th><input id="filterTroops" type="search" placeholder="Filter troops"></th>
+                  </tr>
+                </thead>
+                <tbody id="boardRows"></tbody>
+              </table>
             </div>
-            <p class="subtle">Projected scores include simulated future rounds.</p>
-          </div>
-          <div class="table-wrap">
-            <table>
-              <thead>
-                <tr>
-                  <th>Entry</th>
-                  <th>Current Points</th>
-                  <th>Projected Final</th>
-                  <th>Best Case</th>
-                  <th>Win Probability</th>
-                </tr>
-              </thead>
-              <tbody id="leaderboardBody"></tbody>
-            </table>
           </div>
         </section>
 
-        <section class="panel">
-          <div class="panel-heading">
-            <div>
-              <p class="eyebrow">Matches Updater</p>
-              <h2>Group Matches</h2>
-            </div>
-            <div class="hero-actions compact-actions">
-              <select id="groupSelect" aria-label="Choose a group to edit"></select>
-              <button id="syncPlayedMatchesButton" type="button">Sync Played Matches</button>
-            </div>
-          </div>
-          <p class="subtle" id="updaterMeta">
-            Load a 2026 results file with group teams to unlock the live standings editor.
-          </p>
+        <section id="planningTab" class="tab-view hidden">
+          <form id="placeForm" class="panel">
+            <h3>Place Recruits</h3>
+            <p id="planningSubmitStatus" class="note"></p>
+            <label>Player <select id="placePlayer"></select></label>
+            <label>Country <select id="placeCountry"></select></label>
+            <label>Troops <input id="placeAmount" type="number" min="1" value="1"></label>
+            <button type="submit" class="primary">Add to Plan</button>
+            <div id="planningDraftList" class="note"></div>
+            <button id="submitRecruitPlanButton" type="button" class="primary">Submit Recruit Plan</button>
+          </form>
 
-          <div class="updater-grid">
-            <div id="fixtureEditor" class="fixture-editor"></div>
+          <div class="panel player-map-panel">
+            <div class="panel-header">
+              <h2>Recruit Player Map</h2>
+              <span id="planningVisiblePlayerLabel" class="badge"></span>
+            </div>
+            <div class="map-layout player-map-layout">
+              <div class="map-shell" style="width: calc(100vw - 86px); max-width: none;">
+                <svg id="planningPlayerMap" viewBox="0 0 1000 500" role="img" aria-label="Recruit player's visible countries on the world map" style="width: 100%;"></svg>
+                <aside id="planningMapDetails" class="map-details map-details-inset" style="position: absolute; top: 58px; right: 14px; z-index: 3; width: 280px; max-height: 300px; overflow: auto;">
+                  <strong>Visible Map</strong>
+                  <p>Select a country on the map to see the information this player is allowed to know.</p>
+                </aside>
+              </div>
+            </div>
+            <div id="planningUnmappedVisible" class="unmapped-list"></div>
+            <div id="planningRegionProgress" class="region-progress"></div>
           </div>
         </section>
 
-      </main>
-    </div>
+        <section id="turnTab" class="tab-view hidden">
+          <div class="panel compact-turn-status">
+            <div class="panel-header">
+              <h2 id="turnTitle">Turn</h2>
+              <div class="top-actions">
+                <button id="finishAttackButton" type="button">Finished Attacking</button>
+                <button id="endTurnButton" type="button" class="primary">End Turn & Roll Round End</button>
+              </div>
+            </div>
+            <p class="note" id="turnNote"></p>
+          </div>
 
-    <script src="annexC.js"></script>
-    <script src="app.js"></script>
+          <div id="attackSection" class="two-col">
+            <form id="claimForm" class="panel">
+              <h3>Claim Unowned Country</h3>
+              <label>From <select id="claimFrom"></select></label>
+              <label>Country <select id="claimTo"></select></label>
+              <label>Troops <input id="claimAmount" type="number" min="1" value="1"></label>
+              <button type="submit" class="primary">Claim</button>
+            </form>
+
+            <form id="attackForm" class="panel">
+              <h3>Attack</h3>
+              <label>From <select id="attackFrom"></select></label>
+              <label>Target <select id="attackTo"></select></label>
+              <label>Attack dice <select id="attackDice"></select></label>
+              <label>Move on conquest <input id="conquestMove" type="number" min="1" value="1"></label>
+              <button type="submit" class="primary">Attack</button>
+            </form>
+          </div>
+
+          <div id="transferSection" class="two-col hidden">
+            <form id="transferForm" class="panel">
+              <h3>Transfer Troops</h3>
+              <label>From <select id="transferFrom"></select></label>
+              <label>To <select id="transferTo"></select></label>
+              <label>Troops <input id="transferAmount" type="number" min="1" value="1"></label>
+              <button type="submit" class="primary">Transfer</button>
+            </form>
+
+            <div class="panel">
+              <div class="panel-header">
+                <h3>Transfer Status</h3>
+              </div>
+              <div id="transferQueue" class="stack"></div>
+            </div>
+          </div>
+
+          <div class="panel player-map-panel">
+            <div class="panel-header">
+              <h2>Player Map</h2>
+              <span id="visiblePlayerLabel" class="badge"></span>
+              <select id="visiblePlayer" class="hidden"></select>
+            </div>
+            <div class="map-layout player-map-layout">
+              <div class="map-shell" style="width: calc(100vw - 86px); max-width: none;">
+                <button id="resetMapButton" type="button" class="map-reset">Reset Map</button>
+                <button id="mapTurnFlowButton" type="button" class="map-turn-flow">Finished Attacking</button>
+                <svg id="playerMap" viewBox="0 0 1000 500" role="img" aria-label="Visible countries on the world map" style="width: 100%;"></svg>
+                <aside id="mapDetails" class="map-details map-details-inset" style="position: absolute; top: 58px; right: 14px; z-index: 3; width: 280px; max-height: 300px; overflow: auto;">
+                  <strong>Visible Map</strong>
+                  <p>Select a country on the map to see the information this player is allowed to know.</p>
+                </aside>
+              </div>
+            </div>
+            <div id="unmappedVisible" class="unmapped-list"></div>
+            <div id="regionProgress" class="region-progress"></div>
+          </div>
+        </section>
+
+        <section id="logTab" class="tab-view hidden">
+          <div class="panel log-modal">
+            <div class="panel-header">
+              <h2>Roll & Game Log</h2>
+              <button id="closeLogButton" type="button">Close</button>
+            </div>
+            <ol id="logList" class="log-list"></ol>
+          </div>
+        </section>
+        <section id="manualTab" class="tab-view hidden">
+          <div class="panel manual-modal">
+            <div class="panel-header">
+              <h2>Gameplay Manual</h2>
+              <button id="closeManualButton" type="button">Close</button>
+            </div>
+            <div class="manual-content">
+              <h3>Goal</h3>
+              <p>Win by being the last active player remaining. A player is eliminated when they have no owned countries or no troops in owned countries. Antarctica troops do not keep a player active.</p>
+
+              <h3>Round Flow</h3>
+              <ol>
+                <li>At the start of a new round, recruits are calculated automatically.</li>
+                <li>If anyone receives recruits, players submit recruit plans independently.</li>
+                <li>Recruits are placed on the board only after every active player with recruits has submitted.</li>
+                <li>Turns then continue in the same alphabetical snake order. Round endings never reset the order.</li>
+              </ol>
+
+              <h3>Placing Recruits</h3>
+              <p>Click one of your owned countries on the map or use the Place Recruits box. Add all recruits to your plan, then click <strong>Submit Recruit Plan</strong>. You can place recruits in Antarctica if you own a country eligible to transfer there.</p>
+
+              <h3>Your Turn</h3>
+              <p>Click one of your countries on the map to see available actions. You may claim unowned bordering countries, attack legal targets, and then make transfers after pressing <strong>Finished Attacking</strong>. Always leave at least 1 troop behind in an origin country.</p>
+
+              <h3>Visibility</h3>
+              <p>Your map shows your countries, bordering countries, network-connected countries, visible Antarctica access, and countries in the same regions. Same-region-only countries reveal only limited information. The log also shows only events you are allowed to know.</p>
+
+              <h3>Attacks</h3>
+              <p>Normal land attacks use up to 3 attack dice. Maritime attacks use up to 2. Regional limited attacks use 1. Ties go to the defender. If you conquer a country, you must move troops in while leaving 1 behind.</p>
+
+              <h3>Nuclear Rules</h3>
+              <p>Attacking, claiming, or conquering a nuclear country can trigger retaliation equal to that country's magnitude. If you claim or conquer a nuclear country and cannot lose the full retaliation amount in troops, the unpaid remainder becomes future region bonus withholding.</p>
+              <p>Starting on a nuclear country also creates a region bonus recruit penalty equal to that starting country's magnitude.</p>
+
+              <h3>Antarctica</h3>
+              <p>Antarctica cannot be owned or attacked. Multiple players can have troops there. It is visible and usable only if you own an eligible Antarctica-connected country.</p>
+
+              <h3>Forfeit</h3>
+              <p>Forfeiting removes your troops outside Antarctica and makes your countries unowned. Your Antarctica troops remain there, but you are no longer active.</p>
+            </div>
+          </div>
+        </section>
+        <button id="openLogButton" type="button" class="log-dock">Log</button>
+        <button id="openManualButton" type="button" class="manual-dock">Manual</button>
+      </section>
+    </main>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="supabase-config.js?v=20260531-online-save-1"></script>
+    <script src="app.js?v=20260608-game-manual-tab-1"></script>
   </body>
 </html>

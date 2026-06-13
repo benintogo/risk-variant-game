@@ -10,3 +10,19 @@ winter_podiums_by_event_year.csv
 # Map source/build files are useful locally but not needed by GitHub Pages.
 data/vendor/
 scripts/
+
+# Separate local project workspace.
+world-cup-bracket-pool/
+WORLD_CUP_POOL_FORMAT.md
+annexC.js
+tmp_bracket_render/
+tmp_fifa_docs/
+data/bracket-picks-extracted-draft.json
+data/bracket-picks-group-cross-check.json
+data/sample-world-cup-entries.json
+data/sample-world-cup-results.json
+data/sample-world-cup-scoring.csv
+data/world-cup-2026-results-template.json
+data/world-cup-2026-slot-picks.json
+data/world-cup-image-scoring-reference.csv
+data/world-cup-image-scoring-reference.json
