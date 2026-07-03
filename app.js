@@ -1582,26 +1582,58 @@ function wait(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-async function preserveOnlineRecruitPlan(playerId, placements) {
-  if (!onlineClient || !onlineGameId) return;
-  await wait(900);
-  const loaded = await loadLatestOnlineStateForMerge();
-  if (!loaded || game.phase !== "planning") return;
-  const plan = playerRecruitPlan(playerId);
-  if (plan?.submitted && placementsEqual(plan.placements, placements)) return;
+function applyRecruitPlanToBoard(playerId, placements) {
+  const player = game.players.find((candidate) => candidate.id === playerId);
+  if (!player || player.reserve <= 0) return false;
   game.recruitPlans ||= {};
-  game.recruitPlans[playerId] = {
+  const existingPlan = game.recruitPlans[playerId];
+  if (existingPlan?.applied) return false;
+  let placed = 0;
+  for (const [country, rawAmount] of Object.entries(placements || {})) {
+    const amount = Math.max(0, Number(rawAmount || 0));
+    if (amount <= 0) continue;
+    if (isAntarctica(country)) {
+      game.antarcticaTroops[player.id] = antarcticaTroops(player.id) + amount;
+      placed += amount;
+    } else if (game.ownership[country] === player.id) {
+      game.troops[country] = countryTroops(country) + amount;
+      placed += amount;
+    }
+  }
+  player.reserve = Math.max(0, player.reserve - placed);
+  game.recruitPlans[player.id] = {
     submitted: true,
+    applied: true,
     placements,
     round: game.round,
-    submittedAt: new Date().toISOString()
+    submittedAt: existingPlan?.submittedAt || new Date().toISOString()
   };
-  if (allRecruitsPlaced()) {
-    resolvePlanning();
-  } else {
-    saveGame();
+  addPrivateLog(`${player.name}'s recruit plan resolves: ${Object.entries(placements || {}).filter(([, amount]) => Number(amount) > 0).sort(([a], [b]) => a.localeCompare(b)).map(([country, amount]) => `${amount} to ${country}`).join("; ")}.`, [player.id]);
+  return true;
+}
+
+async function preserveOnlineRecruitPlan(playerId, placements, attempts = 4) {
+  if (!onlineClient || !onlineGameId) return;
+  for (let attempt = 0; attempt < attempts; attempt += 1) {
+    await wait(attempt === 0 ? 350 : 900);
+    const loaded = await loadLatestOnlineStateForMerge();
+    if (!loaded || game.phase !== "planning") return;
+    const plan = playerRecruitPlan(playerId);
+    if (plan?.applied && placementsEqual(plan.placements, placements)) {
+      if (allRecruitsPlaced()) {
+        resolvePlanning();
+        await saveOnlineGame({ quiet: true });
+      }
+      return;
+    }
+    applyRecruitPlanToBoard(playerId, placements);
+    if (allRecruitsPlaced()) {
+      resolvePlanning();
+    } else {
+      saveGame();
+    }
+    await saveOnlineGame({ quiet: true });
   }
-  await saveOnlineGame({ quiet: true });
 }
 
 async function submitRecruitPlan() {
@@ -1627,13 +1659,7 @@ async function submitRecruitPlan() {
     render();
     return;
   }
-  game.recruitPlans ||= {};
-  game.recruitPlans[player.id] = {
-    submitted: true,
-    placements: validation.placements,
-    round: game.round,
-    submittedAt: new Date().toISOString()
-  };
+  applyRecruitPlanToBoard(player.id, validation.placements);
   clearRecruitDraft(player.id);
   addPrivateLog(`${player.name} submits a recruit plan.`, [player.id]);
   if (allRecruitsPlaced()) {
