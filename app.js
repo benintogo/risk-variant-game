@@ -442,8 +442,7 @@ function shuffled(items) {
 
 function startGame(names) {
   game = blankState();
-  const sortedNames = [...names].sort((a, b) => a.localeCompare(b));
-  game.players = sortedNames.map((name, index) => ({
+  game.players = names.map((name, index) => ({
     id: `p${index + 1}`,
     name,
     carry: 0,
@@ -1059,7 +1058,7 @@ function turnPassTriggersNewRound(playerId) {
 function currentPlayer() {
   if (!game) return null;
   if (game.phase === "gameover") return null;
-  const players = activePlayers().sort((a, b) => a.name.localeCompare(b.name));
+  const players = activePlayers();
   if (!players.length) return null;
   game.turnPointer = Math.min(game.turnPointer, players.length - 1);
   return players[game.turnPointer];
@@ -1092,13 +1091,13 @@ function setSession(role, playerId = "") {
 }
 
 function setTurnPointerToPlayer(playerId) {
-  const players = activePlayers().sort((a, b) => a.name.localeCompare(b.name));
+  const players = activePlayers();
   const index = players.findIndex((player) => player.id === playerId);
   if (index >= 0) game.turnPointer = index;
 }
 
 function advanceTurn() {
-  const players = activePlayers().sort((a, b) => a.name.localeCompare(b.name));
+  const players = activePlayers();
   if (players.length <= 1) return;
   if (game.snakeDirection === 1) {
     if (game.turnPointer >= players.length - 1) {
@@ -1116,7 +1115,7 @@ function advanceTurn() {
 }
 
 function nextTurnAfterForfeit(playerId) {
-  const players = activePlayers().sort((a, b) => a.name.localeCompare(b.name));
+  const players = activePlayers();
   const index = players.findIndex((player) => player.id === playerId);
   if (index < 0 || players.length <= 1) return null;
   let nextIndex = index;
@@ -1407,8 +1406,7 @@ function setOptions(select, items, getLabel = (x) => x, getValue = (x) => x) {
 
 function playersWithRecruits() {
   return activePlayers()
-    .filter((player) => player.reserve > 0)
-    .sort((a, b) => a.name.localeCompare(b.name));
+    .filter((player) => player.reserve > 0);
 }
 
 function playerRecruitPlan(playerId) {
