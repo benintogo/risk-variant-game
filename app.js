@@ -2637,6 +2637,10 @@ function render() {
     $("statusLine").textContent = setupMode ? "Set up a new online game" : "Create or load an online game";
     return;
   }
+  if (game.phase === "planning" && allRecruitsPlaced()) {
+    resolvePlanning();
+    return;
+  }
   renderTabs();
   renderSummary();
   renderBoard();
@@ -3176,7 +3180,7 @@ function bindEvents() {
   $("claimTo").addEventListener("change", updateClaimTargets);
   $("attackFrom").addEventListener("change", updateAttackTargets);
   $("attackTo").addEventListener("change", updateAttackDice);
-  $("placeForm").addEventListener("submit", (event) => {
+  $("placeForm").addEventListener("submit", async (event) => {
     event.preventDefault();
     const player = game.players.find((p) => p.id === $("placePlayer").value);
     const country = $("placeCountry").value;
@@ -3189,6 +3193,10 @@ function bindEvents() {
     }
     draft[country] = Number(draft[country] || 0) + amount;
     saveRecruitDraft(draft, player.id);
+    if (recruitDraftTotal(draft) === player.reserve) {
+      await submitRecruitPlan();
+      return;
+    }
     render();
   });
   $("submitRecruitPlanButton").addEventListener("click", () => submitRecruitPlan());
