@@ -126,6 +126,7 @@ let pendingOnlineStateText = "";
 let setupMode = false;
 let sessionRole = localStorage.getItem(SESSION_ROLE_KEY) || "player";
 let sessionPlayerId = localStorage.getItem(SESSION_PLAYER_KEY) || "";
+let lastRenderedTurnPlayerId = "";
 
 const MAP_MIN_SCALE = 145;
 const PLAYER_MAP_MAX_SCALE = 7200;
@@ -2667,6 +2668,16 @@ function render() {
     resolvePlanning();
     return;
   }
+  if (game.phase === "turn") {
+    const turnPlayerId = currentPlayer()?.id || "";
+    if (turnPlayerId && lastRenderedTurnPlayerId && turnPlayerId !== lastRenderedTurnPlayerId) {
+      game.turnStage = "attack";
+      selectedMapCountry = null;
+    }
+    lastRenderedTurnPlayerId = turnPlayerId;
+  } else if (game.phase !== "planning") {
+    lastRenderedTurnPlayerId = "";
+  }
   renderTabs();
   renderSummary();
   renderBoard();
@@ -3315,6 +3326,7 @@ function bindEvents() {
     if (endingPlayer) recordTurnSnapshot(`After ${endingPlayer.name}'s turn in round ${game.round}`);
     advanceTurn();
     game.turnStage = "attack";
+    lastRenderedTurnPlayerId = currentPlayer()?.id || "";
     game.turnHadAction = false;
     if (automaticRound) {
       startNewRound("Every active player passed consecutively, so the round ends automatically");
