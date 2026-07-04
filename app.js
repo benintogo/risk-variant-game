@@ -127,6 +127,7 @@ let setupMode = false;
 let sessionRole = localStorage.getItem(SESSION_ROLE_KEY) || "player";
 let sessionPlayerId = localStorage.getItem(SESSION_PLAYER_KEY) || "";
 let lastRenderedTurnPlayerId = "";
+let promptedNuclearDecisionIds = new Set();
 
 const MAP_MIN_SCALE = 145;
 const PLAYER_MAP_MAX_SCALE = 7200;
@@ -291,6 +292,7 @@ function blankState() {
     snakeDirection: 1,
     phase: "setup",
     pendingTransfers: [],
+    pendingNuclearRetaliations: [],
     log: [],
     nextId: 1,
     ownershipTick: 1,
@@ -520,6 +522,7 @@ function normalizeLoadedGame() {
   game.regionControlAnnouncements ||= {};
   game.recruitPlans ||= {};
   game.pendingTransfers ||= [];
+  game.pendingNuclearRetaliations ||= [];
   game.antarcticaTroops ||= {};
   game.antarcticaUnclaimed ||= 0;
   game.ownershipSince ||= {};
@@ -1160,6 +1163,7 @@ function checkEliminations() {
       }
       player.eliminated = true;
       player.reserve = 0;
+      game.pendingNuclearRetaliations = (game.pendingNuclearRetaliations || []).filter((pending) => pending.defenderId !== player.id && pending.actorId !== player.id);
       addPrivateLog(`${player.name} is eliminated.`, [player.id]);
     }
   }
@@ -1186,6 +1190,7 @@ function forfeitCurrentSessionPlayer() {
   player.eliminated = true;
   player.reserve = 0;
   game.pendingTransfers = (game.pendingTransfers || []).filter((transfer) => transfer.playerId !== player.id);
+  game.pendingNuclearRetaliations = (game.pendingNuclearRetaliations || []).filter((pending) => pending.defenderId !== player.id && pending.actorId !== player.id);
   game.consecutivePasses = (game.consecutivePasses || []).filter((id) => id !== player.id);
   addPrivateLog(`${player.name} forfeits the game. Troops outside Antarctica are removed.`, [player.id]);
   refreshRegionControlAnnouncements();
@@ -1311,12 +1316,41 @@ function applyNuclearRetaliation({ targetName, actorId, defenderId = null, exclu
   const defender = game.players.find((player) => player.id === defenderId);
   if (!actor) return;
   if (defenderId && defenderId !== actorId && defender) {
-    const proceed = confirm(`${defender.name} may use nuclear retaliation from ${targetName} against ${actor.name}. Do this?`);
-    if (!proceed) {
-      addPrivateLog(`${defender.name} declines nuclear retaliation from ${targetName}.`, [defenderId, actorId]);
-      return;
-    }
+    queueNuclearRetaliationDecision({ targetName, actorId, defenderId, excludeCountry, action, deferUnpaidRegionPenalty });
+    return;
   }
+  executeNuclearRetaliation({ targetName, actorId, defenderId, excludeCountry, action, deferUnpaidRegionPenalty });
+}
+
+function queueNuclearRetaliationDecision({ targetName, actorId, defenderId, excludeCountry = null, action = "targets", deferUnpaidRegionPenalty = false }) {
+  game.pendingNuclearRetaliations ||= [];
+  const duplicate = game.pendingNuclearRetaliations.some((pending) => (
+    pending.targetName === targetName
+    && pending.actorId === actorId
+    && pending.defenderId === defenderId
+    && pending.round === game.round
+  ));
+  if (duplicate) return;
+  const actor = game.players.find((player) => player.id === actorId);
+  const defender = game.players.find((player) => player.id === defenderId);
+  game.pendingNuclearRetaliations.push({
+    id: `nuke-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+    targetName,
+    actorId,
+    defenderId,
+    excludeCountry,
+    action,
+    deferUnpaidRegionPenalty,
+    round: game.round
+  });
+  addPrivateLog(`${defender?.name || "Defender"} may choose whether to retaliate from nuclear power ${targetName} against ${actor?.name || "the attacker"}.`, [defenderId, actorId]);
+}
+
+function executeNuclearRetaliation({ targetName, actorId, defenderId = null, excludeCountry = null, action = "targets", deferUnpaidRegionPenalty = false }) {
+  const targetCountry = countryByName.get(targetName);
+  if (!targetCountry || !isNuclearPower(targetName, defenderId || game.ownership[targetName])) return;
+  const actor = game.players.find((player) => player.id === actorId);
+  if (!actor) return;
   const amount = Math.max(0, targetCountry.magnitude || 0);
   const result = applyOrderedTroopLoss(actorId, amount, excludeCountry);
   addPrivateLog(`${actor.name} ${action} nuclear power ${targetName}; retaliation follows the nuclear loss order and costs ${result.lost}/${amount} troops: ${describeLossResult(result)}.`, [actorId, defenderId]);
@@ -1334,6 +1368,43 @@ function applyNuclearRetaliation({ targetName, actorId, defenderId = null, exclu
       optionalPlayerId: actorId
     });
   }
+}
+
+function pendingNuclearDecisionForSession() {
+  const player = sessionPlayer();
+  if (!player || player.eliminated) return null;
+  return (game.pendingNuclearRetaliations || []).find((pending) => pending.defenderId === player.id) || null;
+}
+
+function resolvePendingNuclearDecision(id, retaliate) {
+  const pending = (game.pendingNuclearRetaliations || []).find((item) => item.id === id);
+  if (!pending) return;
+  const defender = game.players.find((player) => player.id === pending.defenderId);
+  const actor = game.players.find((player) => player.id === pending.actorId);
+  game.pendingNuclearRetaliations = (game.pendingNuclearRetaliations || []).filter((item) => item.id !== id);
+  promptedNuclearDecisionIds.delete(id);
+  if (retaliate) {
+    executeNuclearRetaliation(pending);
+    checkEliminations();
+    refreshRegionControlAnnouncements();
+  } else {
+    addPrivateLog(`${defender?.name || "Defender"} declines nuclear retaliation from ${pending.targetName}.`, [pending.defenderId, pending.actorId]);
+  }
+  saveGame();
+  render();
+}
+
+function promptPendingNuclearDecision() {
+  const pending = pendingNuclearDecisionForSession();
+  if (!pending || promptedNuclearDecisionIds.has(pending.id)) return;
+  promptedNuclearDecisionIds.add(pending.id);
+  const actor = game.players.find((player) => player.id === pending.actorId);
+  const defender = game.players.find((player) => player.id === pending.defenderId);
+  setTimeout(() => {
+    if (!game || !(game.pendingNuclearRetaliations || []).some((item) => item.id === pending.id)) return;
+    const retaliate = confirm(`${defender?.name || "You"} may use nuclear retaliation from ${pending.targetName} against ${actor?.name || "the attacker"}. Retaliate?`);
+    resolvePendingNuclearDecision(pending.id, retaliate);
+  }, 0);
 }
 
 function resolveAntarcticaUnclaimedTroops() {
@@ -1454,10 +1525,13 @@ function renderSummary() {
   const player = currentPlayer();
   const self = sessionPlayer();
   const winningPlayer = winner();
+  const pendingNuclear = pendingNuclearDecisionForSession();
   $("statusLine").classList.toggle("recruit-alert", Boolean(game && game.phase === "planning" && self?.reserve > 0 && !playerHasSubmittedRecruitPlan(self.id)));
   $("statusLine").textContent = game
     ? winningPlayer
       ? `Game over · ${winningPlayer.name} wins`
+      : pendingNuclear
+      ? `Nuclear retaliation decision pending for ${pendingNuclear.targetName}`
       : game.phase === "planning" && self?.reserve > 0 && !playerHasSubmittedRecruitPlan(self.id)
       ? `Place your ${self.reserve} recruit${self.reserve === 1 ? "" : "s"} now · click one of your countries on the map`
       : game.phase === "planning" && self?.reserve > 0
@@ -2687,6 +2761,7 @@ function render() {
   renderTurn();
   renderVisible();
   renderLog();
+  promptPendingNuclearDecision();
   const activeTab = document.querySelector(".tab.active")?.dataset.tab;
   showTab(canOpenTab(activeTab) ? activeTab : preferredOpenTab());
 }
