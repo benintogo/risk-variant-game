@@ -2,11 +2,11 @@
 
 ## Objective
 
-Win by being the last player remaining on the board. A player is eliminated when they have no owned countries or no troops remaining in owned countries. Troops in Antarctica do not prevent elimination, but they may be redistributed under the Antarctica rules.
+Win by being the last player remaining on the board. A player is eliminated when they have no owned countries or no troops remaining in owned countries. Troops in shared staging territories do not prevent elimination, but they may be redistributed under the shared staging rules.
 
 ## Key Terms
 
-- **Country:** A playable territory on the board, except Antarctica.
+- **Country:** A playable territory on the board, except shared staging territories.
 - **Magnitude:** A country's value. Magnitude affects claiming requirements, recruits, and nuclear retaliation.
 - **Region:** A group of countries. Owning every country in a region gives a recruit bonus at the beginning of each later round.
 - **Network:** A group of related countries that are treated as connected for troop transfers if owned by the same player.
@@ -127,7 +127,7 @@ When a player gains control of every country in a region, the game log announces
 
 Recruits may be placed in countries owned by that player.
 
-Recruits may also be placed in Antarctica if the player owns at least one country eligible to transfer to or from Antarctica.
+Recruits may also be placed in a shared staging territory if the player owns at least one country eligible to transfer to or from that territory.
 
 All recruits must be assigned before a player can submit their plan.
 
@@ -150,7 +150,7 @@ Players can fully see:
 - Their own countries.
 - Countries bordering their own countries by land or maritime border.
 - Countries connected by network to their own countries.
-- Antarctica, if they own a country eligible to transfer to or from Antarctica.
+- Shared staging territories they can access.
 
 For fully visible countries, players can see:
 
@@ -169,7 +169,7 @@ Players can partially see:
 
 For partially visible countries, players see only the country name and region.
 
-Countries that are not owned, bordering, network-connected, Antarctica-visible, or in the same region are hidden from that player.
+Countries that are not owned, bordering, network-connected, shared-staging-visible, or in the same region are hidden from that player.
 
 The entire world map becomes visible to a player if they own United States, China, Russia, India, or Japan. The entire world map also becomes visible if they own Germany, Italy, and Czechia at the same time.
 
@@ -265,7 +265,7 @@ Troops may be transferred between two places if there is a continuous path throu
 - Maritime borders.
 - Network connections.
 
-The origin must keep at least 1 troop, unless the origin is Antarctica.
+The origin must keep at least 1 troop, unless the origin is a shared staging territory.
 
 Players cannot transfer between countries merely because they are in the same region. There must be an actual land, maritime, or network path through owned countries.
 
@@ -277,11 +277,11 @@ Countries in the same network do not count as borders for ordinary attacks.
 
 A country in the same network may only be attacked if it is also in the same region and is therefore eligible for a regional attack.
 
-## Antarctica
+## Shared Staging Territories
 
-Antarctica is a special non-ownable territory.
+Antarctica and Bir Tawil are special non-ownable territories.
 
-Antarctica:
+Shared staging territories:
 
 - Cannot be owned.
 - Cannot be attacked.
@@ -290,15 +290,19 @@ Antarctica:
 - Can hold troops from multiple players at the same time.
 - Is not part of nuclear retaliation target order.
 
-A player may transfer troops to or from Antarctica if they own at least one eligible country.
+A player may transfer troops to or from a shared staging territory if they own at least one eligible country for that territory.
 
 Eligible Antarctica countries are:
 
 Argentina, Australia, Brazil, Chile, China, Czechia, France, Germany, India, Italy, Japan, New Zealand, Norway, Poland, Russia, South Africa, South Korea, Ukraine, United Kingdom, United States, and Uruguay.
 
-If a player loses all owned countries but has troops in Antarctica, those troops become available to the player with the most troops in Antarctica.
+Eligible Bir Tawil countries are:
 
-If multiple players are tied for the most troops in Antarctica, the leftover troops remain unclaimed until the tie is broken.
+The Sudan and South Sudan.
+
+If a player loses all owned countries but has troops in a shared staging territory, those troops become available to the player with the most troops in that same shared staging territory.
+
+If multiple players are tied for the most troops in that staging territory, the leftover troops remain unclaimed until the tie is broken.
 
 ## Nuclear Powers
 
@@ -398,16 +402,16 @@ A player may forfeit from the game controls.
 
 When a player forfeits:
 
-- All of their troops outside Antarctica are removed.
+- All of their troops outside shared staging territories are removed.
 - All countries they owned become unowned.
 - They stop receiving recruits and are no longer active.
-- Their troops in Antarctica remain in Antarctica.
+- Their troops in shared staging territories remain there.
 
 If the forfeiting player was taking a turn, the snake order advances cleanly to the next active player. If only one active player remains after the forfeit, that player wins.
 
 ## Online and Hidden Information Notes
 
-The app tracks hidden information, dice rolls, recruit carryover, region control, Antarctica troops, nuclear retaliation chains, forfeit state, simultaneous recruit plans, and turn order.
+The app tracks hidden information, dice rolls, recruit carryover, region control, shared staging troops, nuclear retaliation chains, forfeit state, simultaneous recruit plans, and turn order.
 
 The game is designed for hostless online play. Players enter the shared Game ID and their exact player name to access their own view.
 

@@ -186,15 +186,31 @@ const ANTARCTICA_CONNECTIONS = new Set([
   "Japan", "New Zealand", "Norway", "Poland", "Russia", "South Africa", "South Korea", "Ukraine",
   "United Kingdom", "United States", "Uruguay"
 ]);
-const ANTARCTICA_PLACE = {
-  id: "antarctica",
-  name: ANTARCTICA_NAME,
+const BIR_TAWIL_NAME = "Bir Tawil";
+const BIR_TAWIL_CONNECTIONS = new Set(["The Sudan", "South Sudan"]);
+const SHARED_STAGING_CONFIG = {
+  [ANTARCTICA_NAME]: {
+    id: "antarctica",
+    troopsKey: "antarcticaTroops",
+    unclaimedKey: "antarcticaUnclaimed",
+    connections: ANTARCTICA_CONNECTIONS
+  },
+  [BIR_TAWIL_NAME]: {
+    id: "bir-tawil",
+    troopsKey: "birTawilTroops",
+    unclaimedKey: "birTawilUnclaimed",
+    connections: BIR_TAWIL_CONNECTIONS
+  }
+};
+const SHARED_STAGING_PLACES = Object.entries(SHARED_STAGING_CONFIG).map(([name, config]) => ({
+  id: config.id,
+  name,
   magnitude: "",
   region: "",
   network: "",
   land: [],
   maritime: []
-};
+}));
 
 const $ = (id) => document.getElementById(id);
 
@@ -245,6 +261,25 @@ function normalizedName(value) {
   return value.toLowerCase().replace(/&/g, "and").replace(/[^a-z0-9]+/g, " ").trim();
 }
 
+function circleFeature(name, lon, lat, radius = 0.35, points = 24) {
+  const ring = [];
+  for (let i = 0; i < points; i += 1) {
+    const angle = (Math.PI * 2 * i) / points;
+    ring.push([
+      Number((lon + Math.cos(angle) * radius).toFixed(3)),
+      Number((lat + Math.sin(angle) * radius).toFixed(3))
+    ]);
+  }
+  ring.push(ring[0]);
+  return {
+    name,
+    iso3: "",
+    continent: "Africa",
+    bbox: [lon - radius, lat - radius, lon + radius, lat + radius],
+    parts: [ring]
+  };
+}
+
 async function loadCountries() {
   const response = await fetch(DATA_URL);
   const csv = await response.text();
@@ -264,7 +299,8 @@ async function loadCountries() {
 async function loadWorldMap() {
   const response = await fetch(MAP_URL);
   const data = await response.json();
-  mapFeatures = data.features.map((feature) => ({
+  const features = [...data.features, circleFeature(BIR_TAWIL_NAME, 33.55, 21.87, 0.28)];
+  mapFeatures = features.map((feature) => ({
     ...feature,
     riskName: riskNameForMapFeature(feature.name)
   }));
@@ -278,6 +314,7 @@ async function loadWorldMap() {
 
 function riskNameForMapFeature(mapName) {
   if (mapName === ANTARCTICA_NAME) return ANTARCTICA_NAME;
+  if (mapName === BIR_TAWIL_NAME) return BIR_TAWIL_NAME;
   const alias = MAP_FEATURE_ALIASES[mapName];
   if (alias && countryByName.has(alias)) return alias;
   return countryByNormalizedName.get(normalizedName(mapName))?.name || null;
@@ -290,6 +327,8 @@ function blankState() {
     troops: {},
     antarcticaTroops: {},
     antarcticaUnclaimed: 0,
+    birTawilTroops: {},
+    birTawilUnclaimed: 0,
     ownershipSince: {},
     round: 1,
     turnPointer: 0,
@@ -339,7 +378,9 @@ function recordTurnSnapshot(label) {
     ownership,
     troops,
     antarcticaTroops: { ...(game.antarcticaTroops || {}) },
-    antarcticaUnclaimed: Number(game.antarcticaUnclaimed || 0)
+    antarcticaUnclaimed: Number(game.antarcticaUnclaimed || 0),
+    birTawilTroops: { ...(game.birTawilTroops || {}) },
+    birTawilUnclaimed: Number(game.birTawilUnclaimed || 0)
   });
   game.timelineIndex = game.turnHistory.length - 1;
 }
@@ -407,20 +448,49 @@ function isNuclearPower(countryName, ownerId = game?.ownership?.[countryName]) {
   return Boolean(requiredCountry && ownerId && game.ownership[requiredCountry] === ownerId);
 }
 
+function isSharedStaging(name) {
+  return Boolean(SHARED_STAGING_CONFIG[name]);
+}
+
 function isAntarctica(name) {
   return name === ANTARCTICA_NAME;
 }
 
 function placeByName(name) {
-  return isAntarctica(name) ? ANTARCTICA_PLACE : countryByName.get(name);
+  return SHARED_STAGING_PLACES.find((place) => place.name === name) || countryByName.get(name);
+}
+
+function sharedStagingConfig(name) {
+  return SHARED_STAGING_CONFIG[name] || null;
+}
+
+function sharedStagingTroops(name, playerId) {
+  const config = sharedStagingConfig(name);
+  return config ? Number(game[config.troopsKey]?.[playerId] || 0) : 0;
+}
+
+function totalSharedStagingTroops(name) {
+  const config = sharedStagingConfig(name);
+  if (!config) return 0;
+  return Object.values(game[config.troopsKey] || {}).reduce((sum, value) => sum + Number(value || 0), Number(game[config.unclaimedKey] || 0));
+}
+
+function playerCanAccessSharedStaging(playerId, stagingName) {
+  const config = sharedStagingConfig(stagingName);
+  if (!config) return false;
+  return ownedCountries(playerId).some((country) => config.connections.has(country.name));
+}
+
+function sharedStagingPlacesForPlayer(playerId) {
+  return SHARED_STAGING_PLACES.filter((place) => playerCanAccessSharedStaging(playerId, place.name));
 }
 
 function antarcticaTroops(playerId) {
-  return Number(game.antarcticaTroops?.[playerId] || 0);
+  return sharedStagingTroops(ANTARCTICA_NAME, playerId);
 }
 
 function totalAntarcticaTroops() {
-  return Object.values(game.antarcticaTroops || {}).reduce((sum, value) => sum + Number(value || 0), Number(game.antarcticaUnclaimed || 0));
+  return totalSharedStagingTroops(ANTARCTICA_NAME);
 }
 
 function setCountryOwner(name, playerId) {
@@ -442,7 +512,7 @@ function queuedOutgoingTroops(name) {
 }
 
 function movableTroops(name) {
-  if (isAntarctica(name)) return antarcticaTroops(currentPlayer()?.id);
+  if (isSharedStaging(name)) return sharedStagingTroops(name, currentPlayer()?.id);
   return Math.max(0, countryTroops(name) - queuedOutgoingTroops(name) - 1);
 }
 
@@ -567,6 +637,8 @@ function normalizeLoadedGame() {
   game.pendingNuclearRetaliations ||= [];
   game.antarcticaTroops ||= {};
   game.antarcticaUnclaimed ||= 0;
+  game.birTawilTroops ||= {};
+  game.birTawilUnclaimed ||= 0;
   game.ownershipSince ||= {};
   game.ownershipTick ||= 1;
   game.planningPlayerId ||= null;
@@ -901,11 +973,11 @@ function connectedNeighbors(country, includeType = "all") {
 }
 
 function hasOwnedTransferPath(playerId, fromName, toName) {
-  if (isAntarctica(fromName)) {
-    return ANTARCTICA_CONNECTIONS.has(toName) && game.ownership[toName] === playerId;
+  if (isSharedStaging(fromName)) {
+    return Boolean(sharedStagingConfig(fromName)?.connections.has(toName) && game.ownership[toName] === playerId);
   }
-  if (isAntarctica(toName)) {
-    return ANTARCTICA_CONNECTIONS.has(fromName) && game.ownership[fromName] === playerId;
+  if (isSharedStaging(toName)) {
+    return Boolean(sharedStagingConfig(toName)?.connections.has(fromName) && game.ownership[fromName] === playerId);
   }
   if (fromName === toName) return true;
   const seen = new Set([fromName]);
@@ -1192,10 +1264,13 @@ function checkEliminations() {
     const owned = ownedCountries(player.id);
     const troops = owned.reduce((sum, country) => sum + countryTroops(country.name), 0);
     if (owned.length === 0 || troops === 0) {
-      const stranded = antarcticaTroops(player.id);
-      if (stranded > 0) {
-        game.antarcticaUnclaimed = Number(game.antarcticaUnclaimed || 0) + stranded;
-        game.antarcticaTroops[player.id] = 0;
+      for (const place of SHARED_STAGING_PLACES) {
+        const config = sharedStagingConfig(place.name);
+        const stranded = sharedStagingTroops(place.name, player.id);
+        if (stranded > 0) {
+          game[config.unclaimedKey] = Number(game[config.unclaimedKey] || 0) + stranded;
+          game[config.troopsKey][player.id] = 0;
+        }
       }
       player.eliminated = true;
       player.reserve = 0;
@@ -1203,7 +1278,7 @@ function checkEliminations() {
       addPrivateLog(`${player.name} is eliminated.`, [player.id]);
     }
   }
-  resolveAntarcticaUnclaimedTroops();
+  resolveSharedStagingUnclaimedTroops();
   const gameEnded = concludeGameIfWon();
   if (!gameEnded && turnPlayerId && activePlayers().some((player) => player.id === turnPlayerId)) {
     setTurnPointerToPlayer(turnPlayerId);
@@ -1216,7 +1291,7 @@ function forfeitCurrentSessionPlayer() {
     alert("There is no active player to forfeit.");
     return;
   }
-  if (!confirm(`${player.name}, forfeit this game? Your troops outside Antarctica will be removed.`)) return;
+  if (!confirm(`${player.name}, forfeit this game? Your troops outside shared staging territories will be removed.`)) return;
 
   const currentTurnPlayerId = currentPlayer()?.id || null;
   const nextTurn = currentTurnPlayerId === player.id ? nextTurnAfterForfeit(player.id) : null;
@@ -1228,7 +1303,7 @@ function forfeitCurrentSessionPlayer() {
   game.pendingTransfers = (game.pendingTransfers || []).filter((transfer) => transfer.playerId !== player.id);
   game.pendingNuclearRetaliations = (game.pendingNuclearRetaliations || []).filter((pending) => pending.defenderId !== player.id && pending.actorId !== player.id);
   game.consecutivePasses = (game.consecutivePasses || []).filter((id) => id !== player.id);
-  addPrivateLog(`${player.name} forfeits the game. Troops outside Antarctica are removed.`, [player.id]);
+  addPrivateLog(`${player.name} forfeits the game. Troops outside shared staging territories are removed.`, [player.id]);
   refreshRegionControlAnnouncements();
 
   if (!concludeGameIfWon()) {
@@ -1582,18 +1657,21 @@ function promptPendingNuclearDecision() {
   }, 0);
 }
 
-function resolveAntarcticaUnclaimedTroops() {
-  const unclaimed = Number(game.antarcticaUnclaimed || 0);
-  if (unclaimed <= 0) return;
-  const candidates = activePlayers().map((player) => ({ player, troops: antarcticaTroops(player.id) }));
-  if (!candidates.length) return;
-  const most = Math.max(...candidates.map((item) => item.troops));
-  const leaders = candidates.filter((item) => item.troops === most);
-  if (leaders.length !== 1) return;
-  const leader = leaders[0].player;
-  game.antarcticaTroops[leader.id] = antarcticaTroops(leader.id) + unclaimed;
-  game.antarcticaUnclaimed = 0;
-  addPrivateLog(`${leader.name} receives ${unclaimed} unclaimed troops in Antarctica.`, [leader.id]);
+function resolveSharedStagingUnclaimedTroops() {
+  for (const place of SHARED_STAGING_PLACES) {
+    const config = sharedStagingConfig(place.name);
+    const unclaimed = Number(game[config.unclaimedKey] || 0);
+    if (unclaimed <= 0) continue;
+    const candidates = activePlayers().map((player) => ({ player, troops: sharedStagingTroops(place.name, player.id) }));
+    if (!candidates.length) continue;
+    const most = Math.max(...candidates.map((item) => item.troops));
+    const leaders = candidates.filter((item) => item.troops === most);
+    if (leaders.length !== 1) continue;
+    const leader = leaders[0].player;
+    game[config.troopsKey][leader.id] = sharedStagingTroops(place.name, leader.id) + unclaimed;
+    game[config.unclaimedKey] = 0;
+    addPrivateLog(`${leader.name} receives ${unclaimed} unclaimed troops in ${place.name}.`, [leader.id]);
+  }
 }
 
 function concludeGameIfWon() {
@@ -1615,7 +1693,7 @@ function visibleCountriesFor(playerId) {
   if (playerHasGlobalVisibility(playerId)) {
     const visible = new Map();
     for (const country of countries) visible.set(country.name, game.ownership[country.name] === playerId ? "Owned" : "Global");
-    if (owned.some((country) => ANTARCTICA_CONNECTIONS.has(country.name))) visible.set(ANTARCTICA_NAME, "Antarctica");
+    for (const place of sharedStagingPlacesForPlayer(playerId)) visible.set(place.name, place.name);
     return [...visible.entries()]
       .map(([name, visibility]) => ({ country: placeByName(name), visibility }))
       .sort((a, b) => a.country.name.localeCompare(b.country.name));
@@ -1634,9 +1712,7 @@ function visibleCountriesFor(playerId) {
       }
     }
   }
-  if (owned.some((country) => ANTARCTICA_CONNECTIONS.has(country.name))) {
-    visible.set(ANTARCTICA_NAME, "Antarctica");
-  }
+  for (const place of sharedStagingPlacesForPlayer(playerId)) visible.set(place.name, place.name);
   return [...visible.entries()]
     .map(([name, visibility]) => ({ country: placeByName(name), visibility }))
     .sort((a, b) => a.country.name.localeCompare(b.country.name));
@@ -1731,15 +1807,19 @@ function renderSummary() {
     : `${countries.length} countries loaded`;
   $("summaryGrid").innerHTML = active.map((p) => {
     const owned = ownedCountries(p.id);
-    const troopCount = owned.reduce((sum, country) => sum + countryTroops(country.name), 0) + antarcticaTroops(p.id);
+    const stagingSummary = SHARED_STAGING_PLACES
+      .map((place) => `${sharedStagingTroops(place.name, p.id)} in ${place.name}`)
+      .join(" · ");
+    const stagingTroops = SHARED_STAGING_PLACES.reduce((sum, place) => sum + sharedStagingTroops(place.name, p.id), 0);
+    const troopCount = owned.reduce((sum, country) => sum + countryTroops(country.name), 0) + stagingTroops;
     const nuclearPenalty = Number(p.nuclearRecruitPenaltyRemaining || 0);
     const penaltyText = nuclearPenalty > 0 ? ` · ${nuclearPenalty} nuclear start penalty left` : "";
-    return `<div class="summary-card"><strong>${p.name}</strong><span>${owned.length} countries · ${troopCount} troops · ${antarcticaTroops(p.id)} in Antarctica · ${p.reserve} unplaced recruits · ${p.carry.toFixed(2)} carry${penaltyText}</span></div>`;
+    return `<div class="summary-card"><strong>${p.name}</strong><span>${owned.length} countries · ${troopCount} troops · ${stagingSummary} · ${p.reserve} unplaced recruits · ${p.carry.toFixed(2)} carry${penaltyText}</span></div>`;
   }).join("");
 }
 
 function boardPlaces() {
-  return [...countries, ANTARCTICA_PLACE];
+  return [...countries, ...SHARED_STAGING_PLACES];
 }
 
 function renderBoard() {
@@ -1760,8 +1840,8 @@ function renderBoard() {
         region: country.region.toLowerCase(),
         network: (country.network || "").toLowerCase(),
         magnitude: String(country.magnitude),
-        owner: isAntarctica(country.name) ? "shared" : playerName(game.ownership[country.name]).toLowerCase(),
-        troops: isAntarctica(country.name) ? String(totalAntarcticaTroops()) : String(countryTroops(country.name) || "")
+        owner: isSharedStaging(country.name) ? "shared" : playerName(game.ownership[country.name]).toLowerCase(),
+        troops: isSharedStaging(country.name) ? String(totalSharedStagingTroops(country.name)) : String(countryTroops(country.name) || "")
       };
       return Object.entries(filters).every(([key, value]) => !value || row[key].includes(value));
     })
@@ -1770,8 +1850,8 @@ function renderBoard() {
       <td>${country.region}</td>
       <td>${country.network || ""}</td>
       <td>${country.magnitude}</td>
-      <td>${isAntarctica(country.name) ? "Shared staging" : playerName(game.ownership[country.name])}</td>
-      <td>${isAntarctica(country.name) ? totalAntarcticaTroops() : countryTroops(country.name) || ""}</td>
+      <td>${isSharedStaging(country.name) ? "Shared staging" : playerName(game.ownership[country.name])}</td>
+      <td>${isSharedStaging(country.name) ? totalSharedStagingTroops(country.name) : countryTroops(country.name) || ""}</td>
     </tr>`).join("");
 }
 
@@ -1813,7 +1893,7 @@ function renderRecruitDraftStatus(player) {
 function validRecruitDestinations(playerId) {
   const owned = ownedCountries(playerId);
   const destinations = new Set(owned.map((country) => country.name));
-  if (owned.some((country) => ANTARCTICA_CONNECTIONS.has(country.name))) destinations.add(ANTARCTICA_NAME);
+  for (const place of sharedStagingPlacesForPlayer(playerId)) destinations.add(place.name);
   return destinations;
 }
 
@@ -1856,8 +1936,9 @@ function applyRecruitPlanToBoard(playerId, placements) {
   for (const [country, rawAmount] of Object.entries(placements || {})) {
     const amount = Math.max(0, Number(rawAmount || 0));
     if (amount <= 0) continue;
-    if (isAntarctica(country)) {
-      game.antarcticaTroops[player.id] = antarcticaTroops(player.id) + amount;
+    if (isSharedStaging(country)) {
+      const config = sharedStagingConfig(country);
+      game[config.troopsKey][player.id] = sharedStagingTroops(country, player.id) + amount;
       placed += amount;
     } else if (game.ownership[country] === player.id) {
       game.troops[country] = countryTroops(country) + amount;
@@ -1947,12 +2028,11 @@ function updatePlaceCountries() {
     return;
   }
   const owned = ownedCountries(playerId);
-  const destinations = [...owned];
-  if (owned.some((country) => ANTARCTICA_CONNECTIONS.has(country.name))) destinations.push(ANTARCTICA_PLACE);
+  const destinations = [...owned, ...sharedStagingPlacesForPlayer(playerId)];
   setOptions(
     $("placeCountry"),
     destinations,
-    (country) => `${country.name} (${isAntarctica(country.name) ? antarcticaTroops(playerId) : countryTroops(country.name)})`,
+    (country) => `${country.name} (${isSharedStaging(country.name) ? sharedStagingTroops(country.name, playerId) : countryTroops(country.name)})`,
     (country) => country.name
   );
   const player = game.players.find((candidate) => candidate.id === playerId);
@@ -1975,17 +2055,19 @@ function updateTransferCountries() {
   }
   const allOwned = ownedCountries(playerId);
   const origins = allOwned.filter((country) => movableTroops(country.name) > 0);
-  if (antarcticaTroops(playerId) > 0) origins.push(ANTARCTICA_PLACE);
-  setOptions($("transferFrom"), origins, (country) => `${country.name} (${isAntarctica(country.name) ? antarcticaTroops(playerId) : movableTroops(country.name)} movable)`, (country) => country.name);
+  for (const place of SHARED_STAGING_PLACES) {
+    if (sharedStagingTroops(place.name, playerId) > 0) origins.push(place);
+  }
+  setOptions($("transferFrom"), origins, (country) => `${country.name} (${isSharedStaging(country.name) ? sharedStagingTroops(country.name, playerId) : movableTroops(country.name)} movable)`, (country) => country.name);
   const from = $("transferFrom").value;
   const destinations = from
     ? [
         ...allOwned.filter((country) => country.name !== from && hasOwnedTransferPath(playerId, from, country.name)),
-        ...(!isAntarctica(from) && hasOwnedTransferPath(playerId, from, ANTARCTICA_NAME) ? [ANTARCTICA_PLACE] : [])
+        ...SHARED_STAGING_PLACES.filter((place) => !isSharedStaging(from) && hasOwnedTransferPath(playerId, from, place.name))
       ]
     : [];
   setOptions($("transferTo"), destinations, (country) => country.name, (country) => country.name);
-  const max = from ? (isAntarctica(from) ? antarcticaTroops(playerId) : movableTroops(from)) : 0;
+  const max = from ? (isSharedStaging(from) ? sharedStagingTroops(from, playerId) : movableTroops(from)) : 0;
   $("transferAmount").max = max;
   $("transferAmount").value = Math.min(Math.max(1, Number($("transferAmount").value || 1)), Math.max(1, max));
   $("transferAmount").disabled = max < 1 || destinations.length === 0;
@@ -2433,7 +2515,7 @@ function visibilityClass(visibility, country, playerId) {
 }
 
 function visibleLabelLines(country, visibility, playerId) {
-  if (isAntarctica(country.name)) return [country.name, `${antarcticaTroops(playerId)} troops`];
+  if (isSharedStaging(country.name)) return [country.name, `${sharedStagingTroops(country.name, playerId)} troops`];
   if (visibility === "Same region") return [country.name];
   const owner = game.ownership[country.name];
   if (!owner) return [country.name, `Mag ${country.magnitude}`];
@@ -2442,12 +2524,12 @@ function visibleLabelLines(country, visibility, playerId) {
 }
 
 function visibleDetailHtml(country, visibility, playerId) {
-  if (isAntarctica(country.name)) {
+  if (isSharedStaging(country.name)) {
     return `
       <strong>${country.name}</strong>
       <p><span class="badge">Shared staging</span></p>
-      <p>Your troops: ${antarcticaTroops(playerId)}</p>
-      <p>Total troops: ${totalAntarcticaTroops()}</p>
+      <p>Your troops: ${sharedStagingTroops(country.name, playerId)}</p>
+      <p>Total troops: ${totalSharedStagingTroops(country.name)}</p>
     `;
   }
   const full = visibility !== "Same region";
@@ -2468,7 +2550,7 @@ function visibleDetailHtml(country, visibility, playerId) {
 }
 
 function contextualActionHtml(country, playerId, detailsId) {
-  if (!country || !playerId || isAntarctica(country.name)) return "";
+  if (!country || !playerId || isSharedStaging(country.name)) return "";
   const owner = game.ownership[country.name];
   const current = currentPlayer();
   const isOwnCountry = owner === playerId;
@@ -2543,15 +2625,16 @@ function contextualActionHtml(country, playerId, detailsId) {
 }
 
 function moderatorLabelLines(country) {
-  if (isAntarctica(country.name)) return [country.name, `${totalAntarcticaTroops()} troops`];
+  if (isSharedStaging(country.name)) return [country.name, `${totalSharedStagingTroops(country.name)} troops`];
   const owner = game.ownership[country.name];
   if (!owner) return [country.name, `Mag ${country.magnitude}`];
   return [country.name, `${countryTroops(country.name)} troops`, `Mag ${country.magnitude}`];
 }
 
 function snapshotLabelLines(country, snapshot) {
-  if (isAntarctica(country.name)) {
-    const total = Object.values(snapshot.antarcticaTroops || {}).reduce((sum, value) => sum + Number(value || 0), Number(snapshot.antarcticaUnclaimed || 0));
+  if (isSharedStaging(country.name)) {
+    const config = sharedStagingConfig(country.name);
+    const total = Object.values(snapshot[config.troopsKey] || {}).reduce((sum, value) => sum + Number(value || 0), Number(snapshot[config.unclaimedKey] || 0));
     return [country.name, `${total} troops`];
   }
   const owner = snapshot.ownership?.[country.name];
@@ -2639,12 +2722,13 @@ function appendMapLabel(svg, entry, onSelect) {
 }
 
 function moderatorDetailHtml(country) {
-  if (isAntarctica(country.name)) {
-    const rows = game.players.map((player) => `<p>${player.name}: ${antarcticaTroops(player.id)}</p>`).join("");
+  if (isSharedStaging(country.name)) {
+    const config = sharedStagingConfig(country.name);
+    const rows = game.players.map((player) => `<p>${player.name}: ${sharedStagingTroops(country.name, player.id)}</p>`).join("");
     return `
       <strong>${country.name}</strong>
       <p>Shared staging area</p>
-      <p>Unclaimed tied troops: ${Number(game.antarcticaUnclaimed || 0)}</p>
+      <p>Unclaimed tied troops: ${Number(game[config.unclaimedKey] || 0)}</p>
       ${rows}
     `;
   }
@@ -2673,7 +2757,7 @@ function selectVisibleMapCountry(countryName, visible, playerId, svgId = "player
 }
 
 function applyKnownOwnerColor(path, country) {
-  if (isAntarctica(country.name)) return;
+  if (isSharedStaging(country.name)) return;
   const owner = game.ownership[country.name];
   path.style.fill = owner ? playerColor(owner) : "";
 }
@@ -2821,7 +2905,7 @@ function renderModeratorMap() {
     if (!pathData) continue;
     const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
     path.setAttribute("d", pathData);
-    path.setAttribute("class", `map-country ${isAntarctica(country.name) ? "map-region" : game.ownership[country.name] ? "map-known" : "map-unowned"}`);
+    path.setAttribute("class", `map-country ${isSharedStaging(country.name) ? "map-region" : game.ownership[country.name] ? "map-known" : "map-unowned"}`);
     applyKnownOwnerColor(path, country);
     path.dataset.country = country.name;
     const title = document.createElementNS("http://www.w3.org/2000/svg", "title");
@@ -2883,8 +2967,8 @@ function renderTimelineMap() {
     const ownerId = snapshot.ownership?.[country.name];
     const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
     path.setAttribute("d", pathData);
-    path.setAttribute("class", `map-country ${isAntarctica(country.name) ? "map-region" : ownerId ? "map-known" : "map-unowned"}`);
-    if (ownerId && !isAntarctica(country.name)) path.style.fill = playerColor(ownerId);
+    path.setAttribute("class", `map-country ${isSharedStaging(country.name) ? "map-region" : ownerId ? "map-known" : "map-unowned"}`);
+    if (ownerId && !isSharedStaging(country.name)) path.style.fill = playerColor(ownerId);
     path.dataset.country = country.name;
     svg.appendChild(path);
     const candidates = labelCandidatePointsForFeature(feature, moderatorGlobeView);
@@ -3167,8 +3251,9 @@ function applySubmittedRecruitPlans() {
       const amount = Math.max(0, Number(rawAmount || 0));
       if (amount <= 0) continue;
       placed += amount;
-      if (isAntarctica(country)) {
-        game.antarcticaTroops[player.id] = antarcticaTroops(player.id) + amount;
+      if (isSharedStaging(country)) {
+        const config = sharedStagingConfig(country);
+        game[config.troopsKey][player.id] = sharedStagingTroops(country, player.id) + amount;
       } else if (game.ownership[country] === player.id) {
         game.troops[country] = countryTroops(country) + amount;
       }
@@ -3554,24 +3639,26 @@ function bindEvents() {
     const from = $("transferFrom").value;
     const to = $("transferTo").value;
     const amount = Number($("transferAmount").value);
-    const maxTransfer = isAntarctica(from) ? antarcticaTroops(playerId) : movableTroops(from);
+    const maxTransfer = isSharedStaging(from) ? sharedStagingTroops(from, playerId) : movableTroops(from);
     if (!playerId || !from || !to || amount < 1 || amount > maxTransfer || !hasOwnedTransferPath(playerId, from, to)) {
       alert("That transfer is not available.");
       return;
     }
     markTurnAction();
-    if (isAntarctica(from)) {
-      game.antarcticaTroops[playerId] = antarcticaTroops(playerId) - amount;
+    if (isSharedStaging(from)) {
+      const config = sharedStagingConfig(from);
+      game[config.troopsKey][playerId] = sharedStagingTroops(from, playerId) - amount;
       game.troops[to] = countryTroops(to) + amount;
-    } else if (isAntarctica(to)) {
+    } else if (isSharedStaging(to)) {
+      const config = sharedStagingConfig(to);
       game.troops[from] -= amount;
-      game.antarcticaTroops[playerId] = antarcticaTroops(playerId) + amount;
+      game[config.troopsKey][playerId] = sharedStagingTroops(to, playerId) + amount;
     } else {
       game.troops[from] -= amount;
       game.troops[to] = countryTroops(to) + amount;
     }
     addPrivateLog(`${player.name} transfers ${amount} from ${from} to ${to}.`, [player.id]);
-    resolveAntarcticaUnclaimedTroops();
+    resolveSharedStagingUnclaimedTroops();
     saveGame();
     render();
   });
