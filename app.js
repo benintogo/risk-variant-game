@@ -1218,33 +1218,40 @@ function forfeitCurrentSessionPlayer() {
   render();
 }
 
-function nuclearLossOrder(playerId, excludeCountry = null) {
+function nuclearRetaliationGeographyRank(country, sourceCountry) {
+  if (!sourceCountry) return 3;
+  const landLinked = sourceCountry.land.includes(country.name) || country.land.includes(sourceCountry.name);
+  if (landLinked) return 0;
+  const maritimeLinked = sourceCountry.maritime.includes(country.name) || country.maritime.includes(sourceCountry.name);
+  if (maritimeLinked) return 1;
+  if (sourceCountry.region && country.region === sourceCountry.region) return 2;
+  return 3;
+}
+
+function nuclearLossOrder(playerId, excludeCountry = null, sourceCountryName = null) {
+  const sourceCountry = sourceCountryName ? countryByName.get(sourceCountryName) : null;
   return ownedCountries(playerId)
     .filter((country) => country.name !== excludeCountry && countryTroops(country.name) > 0)
     .map((country) => ({
       country,
       nuclear: isNuclearPower(country.name, playerId),
-      since: game.ownershipSince?.[country.name] || Infinity
+      since: game.ownershipSince?.[country.name] || Infinity,
+      geographyRank: nuclearRetaliationGeographyRank(country, sourceCountry)
     }))
     .sort((a, b) => {
+      if (a.geographyRank !== b.geographyRank) return a.geographyRank - b.geographyRank;
       if (a.nuclear !== b.nuclear) return a.nuclear ? 1 : -1;
-      if (a.nuclear) {
-        const magnitudeDifference = a.country.magnitude - b.country.magnitude;
-        if (magnitudeDifference) return magnitudeDifference;
-        return b.since - a.since;
-      }
       const magnitudeDifference = b.country.magnitude - a.country.magnitude;
       if (magnitudeDifference) return magnitudeDifference;
       return a.since - b.since;
     });
 }
 
-function applyOrderedTroopLoss(playerId, amount, excludeCountry = null) {
+function applyOrderedTroopLoss(playerId, amount, excludeCountry = null, sourceCountryName = null) {
   let remaining = Math.max(0, amount);
   const losses = [];
   const nuclearSources = [];
-  // Nuclear retaliation is strategic; it ignores attack geography and uses only this ordering.
-  for (const { country, nuclear } of nuclearLossOrder(playerId, excludeCountry)) {
+  for (const { country, nuclear } of nuclearLossOrder(playerId, excludeCountry, sourceCountryName)) {
     if (remaining <= 0) break;
     const available = countryTroops(country.name);
     const loss = Math.min(available, remaining);
@@ -1295,7 +1302,7 @@ function applyNuclearStrike({ sourceName, fromPlayerId, targetPlayerId, automati
     }
   }
   const amount = Math.max(0, sourceCountry.magnitude || 0);
-  const result = applyOrderedTroopLoss(targetPlayerId, amount);
+  const result = applyOrderedTroopLoss(targetPlayerId, amount, null, sourceName);
   addPrivateLog(`${sourcePlayer.name} retaliates with ${sourceName} against ${targetPlayer.name}'s countries by nuclear loss order; ${result.lost}/${amount} troops lost: ${describeLossResult(result)}.`, [fromPlayerId, targetPlayerId]);
   for (const hitNuclear of result.nuclearSources) {
     applyNuclearStrike({
@@ -1352,7 +1359,7 @@ function executeNuclearRetaliation({ targetName, actorId, defenderId = null, exc
   const actor = game.players.find((player) => player.id === actorId);
   if (!actor) return;
   const amount = Math.max(0, targetCountry.magnitude || 0);
-  const result = applyOrderedTroopLoss(actorId, amount, excludeCountry);
+  const result = applyOrderedTroopLoss(actorId, amount, excludeCountry, targetName);
   addPrivateLog(`${actor.name} ${action} nuclear power ${targetName}; retaliation follows the nuclear loss order and costs ${result.lost}/${amount} troops: ${describeLossResult(result)}.`, [actorId, defenderId]);
   if (deferUnpaidRegionPenalty && result.remaining > 0) {
     addFutureRegionBonusPenalty(actorId, result.remaining, `unpaid retaliation from ${targetName}`);
