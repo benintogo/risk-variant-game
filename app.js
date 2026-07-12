@@ -1366,32 +1366,27 @@ function applySpecificCountryTroopLoss(countryName, amount) {
   return { prescribed: amount, lost: loss, remaining: amount - loss, losses };
 }
 
-function applyNuclearStrike({ sourceName, fromPlayerId, targetPlayerId, automatic, optionalPlayerId, depth = 0 }) {
+function applyNuclearStrike({ sourceName, fromPlayerId, targetPlayerId, automatic = false, optionalPlayerId = null, depth = 0 }) {
   if (depth > 30 || !fromPlayerId || !targetPlayerId || fromPlayerId === targetPlayerId) return;
   const sourceCountry = countryByName.get(sourceName);
   const sourcePlayer = game.players.find((player) => player.id === fromPlayerId);
   const targetPlayer = game.players.find((player) => player.id === targetPlayerId);
   if (!sourceCountry || !sourcePlayer || !targetPlayer || targetPlayer.eliminated) return;
-  if (!automatic) {
-    const proceed = confirm(`${sourcePlayer.name} may counter-retaliate with ${sourceName} against ${targetPlayer.name}. Do this?`);
-    if (!proceed) {
-      addPrivateLog(`${sourcePlayer.name} declines to counter-retaliate with ${sourceName}.`, [fromPlayerId, targetPlayerId]);
-      return;
-    }
-  }
-  const amount = Math.max(0, sourceCountry.magnitude || 0);
-  const result = applyOrderedTroopLoss(targetPlayerId, amount, null, sourceName);
-  addPrivateLog(`${sourcePlayer.name} retaliates with ${sourceName} against ${targetPlayer.name}'s countries by nuclear loss order; ${result.lost}/${amount} troops lost: ${describeLossResult(result)}.`, [fromPlayerId, targetPlayerId]);
-  for (const hitNuclear of result.nuclearSources) {
-    applyNuclearStrike({
-      sourceName: hitNuclear.name,
-      fromPlayerId: targetPlayerId,
-      targetPlayerId: fromPlayerId,
-      automatic: targetPlayerId !== optionalPlayerId,
-      optionalPlayerId,
-      depth: depth + 1
+  if (automatic) {
+    executeNuclearRetaliation({
+      targetName: sourceName,
+      actorId: targetPlayerId,
+      defenderId: fromPlayerId,
+      action: "is counter-retaliated against by"
     });
+    return;
   }
+  queueNuclearRetaliationDecision({
+    targetName: sourceName,
+    actorId: targetPlayerId,
+    defenderId: fromPlayerId,
+    action: "is counter-retaliated against by"
+  });
 }
 
 function applyNuclearRetaliation({ targetName, actorId, defenderId = null, excludeCountry = null, action = "targets" }) {

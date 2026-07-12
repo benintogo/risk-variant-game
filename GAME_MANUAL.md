@@ -369,13 +369,13 @@ If the full retaliation amount has not been paid and the retaliating player stop
 
 If a nuclear retaliation against an attacking player removes troops from one of that attacker's nuclear countries, the attacker may choose to counter-retaliate against the defender.
 
-The counter-retaliation targets countries still owned by the opponent, using the same nuclear loss order.
+Counter-retaliation follows the same rules as nuclear retaliation. The eligible player may decline, or may choose legal target countries one at a time until the required number of troops has been removed, no legal targets remain, or they stop early.
 
 If a player's nuclear country was hit by retaliation, they may counter-retaliate even if that retaliation caused them to lose the nuclear country.
 
-If a counter-retaliation hits one of the opponent's nuclear countries, the opponent's next counter-counter retaliation is automatic.
+If a counter-retaliation hits one of the opponent's nuclear countries, that opponent gets the same choice to counter-retaliate under the same targeting rules.
 
-The chain continues as long as eligible nuclear countries are hit and the player with the optional choice chooses to continue.
+The chain continues as long as eligible nuclear countries are hit and eligible players choose to keep retaliating.
 
 ## Elimination
 
