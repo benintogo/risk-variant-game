@@ -1235,6 +1235,7 @@ function nuclearLossOrder(playerId, excludeCountry = null, sourceCountryName = n
     .map((country) => ({
       country,
       nuclear: isNuclearPower(country.name, playerId),
+      troops: countryTroops(country.name),
       since: game.ownershipSince?.[country.name] || Infinity,
       geographyRank: nuclearRetaliationGeographyRank(country, sourceCountry)
     }))
@@ -1243,6 +1244,8 @@ function nuclearLossOrder(playerId, excludeCountry = null, sourceCountryName = n
       if (a.nuclear !== b.nuclear) return a.nuclear ? 1 : -1;
       const magnitudeDifference = b.country.magnitude - a.country.magnitude;
       if (magnitudeDifference) return magnitudeDifference;
+      const troopDifference = a.troops - b.troops;
+      if (troopDifference) return troopDifference;
       return a.since - b.since;
     });
 }
