@@ -1431,7 +1431,7 @@ function queueNuclearRetaliationDecision({ targetName, actorId, defenderId, excl
   const defender = game.players.find((player) => player.id === defenderId);
   const targetNames = strikeableTargets || strikeableNuclearTargets({ sourceName: targetName, targetPlayerId: actorId, retaliatorPlayerId: defenderId, excludeCountry }).map((country) => country.name);
   if (!targetNames.length) {
-    addPrivateLog(`${defender?.name || "Defender"} has no legal nuclear retaliation targets from ${targetName}.`, [defenderId, actorId]);
+    addPrivateLog(`${defender?.name || "Defender"}'s retaliation from ${targetName} is skipped because there are no attacking options.`, [defenderId, actorId]);
     return;
   }
   game.pendingNuclearRetaliations.push({
@@ -1567,7 +1567,7 @@ function promptPendingNuclearDecision() {
     const defender = game.players.find((player) => player.id === pending.defenderId);
     const actor = game.players.find((player) => player.id === pending.actorId);
     game.pendingNuclearRetaliations = (game.pendingNuclearRetaliations || []).filter((item) => item.id !== pending.id);
-    addPrivateLog(`${defender?.name || "Defender"} has no remaining legal nuclear retaliation targets from ${pending.targetName} against ${actor?.name || "the opponent"}.`, [pending.defenderId, pending.actorId]);
+    addPrivateLog(`${defender?.name || "Defender"}'s retaliation from ${pending.targetName} is skipped because there are no attacking options.`, [pending.defenderId, pending.actorId]);
     saveGame();
     render();
     return;
