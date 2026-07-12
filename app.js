@@ -1901,7 +1901,7 @@ function renderTurn() {
     ? `It is currently ${player?.name || "another player"}'s turn. Your map remains visible here.`
     : player
     ? transferStage
-      ? `End-of-turn transfers are available. After this turn, the round ends on a 1 in ${activePlayers().length} roll.`
+      ? `Click one of your countries on the map to move troops. After this turn, the round ends on a 1 in ${activePlayers().length} roll.`
       : `Attack or claim until finished, then open end-of-turn transfers. After this turn, the round ends on a 1 in ${activePlayers().length} roll.`
     : "Only one player remains.";
   $("attackSection").classList.toggle("hidden", Boolean(winningPlayer) || transferStage || !canAct);
@@ -1926,8 +1926,10 @@ function updateClaimTargets() {
     return `${name} (magnitude ${country?.magnitude ?? "?"})`;
   });
   const target = countryByName.get($("claimTo").value);
+  const max = from ? Math.max(0, countryTroops(from) - 1) : 0;
   $("claimAmount").min = target ? Math.max(1, target.magnitude) : 1;
-  $("claimAmount").value = target ? Math.max(1, target.magnitude) : 1;
+  $("claimAmount").max = max || 1;
+  $("claimAmount").value = target ? Math.max(1, max) : 1;
 }
 
 function updateAttackTargets() {
@@ -1945,7 +1947,8 @@ function updateAttackDice() {
   setOptions($("attackDice"), Array.from({ length: Math.max(0, max) }, (_, i) => i + 1), String, String);
   if (max > 0) $("attackDice").value = String(max);
   $("conquestMove").min = 1;
-  $("conquestMove").value = max ? Math.min(Math.max(1, max), countryTroops(from) - 1) : 1;
+  $("conquestMove").max = from ? Math.max(1, countryTroops(from) - 1) : 1;
+  $("conquestMove").value = from ? Math.max(1, countryTroops(from) - 1) : 1;
 }
 
 function applyMapView() {
@@ -3133,7 +3136,11 @@ function updateContextAttackDice(rootId = "mapDetails") {
       diceSelect.appendChild(optionNode);
     }
     if (max > 0) diceSelect.value = String(max);
-    if (moveInput) moveInput.value = String(Math.max(1, Math.min(max || 1, countryTroops(from) - 1)));
+    if (moveInput) {
+      const movable = Math.max(1, countryTroops(from) - 1);
+      moveInput.max = String(movable);
+      moveInput.value = String(movable);
+    }
   });
 }
 
@@ -3144,8 +3151,10 @@ function updateContextClaimAmount(rootId = "mapDetails") {
     const target = countryByName.get(form.querySelector('[name="target"]')?.value);
     const input = form.querySelector('[name="amount"]');
     const min = Math.max(1, target?.magnitude || 0);
+    const max = Math.max(1, countryTroops(form.dataset.from) - 1);
     input.min = String(min);
-    if (Number(input.value || 0) < min) input.value = String(min);
+    input.max = String(max);
+    input.value = String(max);
   });
 }
 

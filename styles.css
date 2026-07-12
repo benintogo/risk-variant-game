@@ -443,6 +443,11 @@ td {
   background: rgba(255, 255, 255, 0.92);
 }
 
+.player-map-layout .map-reset {
+  right: auto;
+  left: 10px;
+}
+
 .map-turn-flow {
   position: absolute;
   left: 50%;
