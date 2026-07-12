@@ -769,7 +769,7 @@ async function refreshOnlineGame({ forceRender = false } = {}) {
   if (game) localStorage.setItem(SAVE_KEY, JSON.stringify(game));
   const nextTurnId = currentPlayer()?.id || "";
   if (previousTurnId !== nextTurnId || previousPhase !== game.phase || previousPlanningId !== (game.planningPlayerId || "")) {
-    resetMapView(false, game.phase === "planning" && currentPlanningPlayer()?.id === sessionPlayerId ? currentPlanningPlayer() : visibleSessionPlayer());
+    resetMapView(false, game.phase === "planning" ? planningMapPlayer() : visibleSessionPlayer());
   }
   render();
 }
@@ -1019,7 +1019,7 @@ function startNewRound(reason) {
     game.phase = "planning";
     game.planningPlayerId = null;
     game.recruitPlans = {};
-    resetMapView(false, currentPlanningPlayer() || visibleSessionPlayer());
+    resetMapView(false, planningMapPlayer());
     showTab(preferredOpenTab());
   } else {
     game.phase = "turn";
@@ -1067,6 +1067,10 @@ function sessionPlayer() {
 
 function visibleSessionPlayer() {
   return sessionPlayer() || currentPlayer();
+}
+
+function planningMapPlayer() {
+  return sessionPlayer() || currentPlanningPlayer() || currentPlayer();
 }
 
 function isPlayerSession() {
@@ -2706,7 +2710,7 @@ function renderVisible() {
 }
 
 function renderPlanningVisible() {
-  const player = currentPlanningPlayer() || visibleSessionPlayer();
+  const player = planningMapPlayer();
   renderPlayerMapFor(player, {
     svgId: "planningPlayerMap",
     detailsId: "planningMapDetails",
@@ -2945,7 +2949,7 @@ function bindInteractivePlayerMap({ svgId, getPlayer, renderMap, detailsId, rese
     globeView.lon = ((((mapDrag.view.lon - dx * 105) + 180) % 360) + 360) % 360 - 180;
     globeView.lat = Math.max(-80, Math.min(80, mapDrag.view.lat + dy * 52));
     globeView.scale = mapDrag.view.scale;
-    renderVisible();
+    renderMap();
   });
 
   function endDrag(event) {
@@ -2973,7 +2977,7 @@ function bindMapControls() {
   });
   bindInteractivePlayerMap({
     svgId: "planningPlayerMap",
-    getPlayer: () => currentPlanningPlayer() || visibleSessionPlayer(),
+    getPlayer: planningMapPlayer,
     renderMap: renderPlanningVisible,
     detailsId: "planningMapDetails"
   });
