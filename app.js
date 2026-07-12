@@ -1301,6 +1301,18 @@ function strikeableNuclearTargets({ sourceName, targetPlayerId, retaliatorPlayer
     .sort((a, b) => a.name.localeCompare(b.name));
 }
 
+function nuclearCounterSourceSnapshot(sourceName, fromPlayerId, targetPlayerId, excludeCountry = null) {
+  return {
+    name: sourceName,
+    strikeableTargets: strikeableNuclearTargets({
+      sourceName,
+      targetPlayerId,
+      retaliatorPlayerId: fromPlayerId,
+      excludeCountry
+    }).map((country) => country.name)
+  };
+}
+
 function nuclearLossOrder(playerId, excludeCountry = null, sourceCountryName = null) {
   const sourceCountry = sourceCountryName ? countryByName.get(sourceCountryName) : null;
   const strikeable = new Set(strikeableNuclearTargets({ sourceName: sourceCountryName, targetPlayerId: playerId, excludeCountry }).map((country) => country.name));
@@ -1325,7 +1337,7 @@ function nuclearLossOrder(playerId, excludeCountry = null, sourceCountryName = n
     });
 }
 
-function applyOrderedTroopLoss(playerId, amount, excludeCountry = null, sourceCountryName = null) {
+function applyOrderedTroopLoss(playerId, amount, excludeCountry = null, sourceCountryName = null, counterTargetPlayerId = null) {
   let remaining = Math.max(0, amount);
   const losses = [];
   const nuclearSources = [];
@@ -1333,10 +1345,13 @@ function applyOrderedTroopLoss(playerId, amount, excludeCountry = null, sourceCo
     if (remaining <= 0) break;
     const available = countryTroops(country.name);
     const loss = Math.min(available, remaining);
+    const counterSource = nuclear && loss > 0 && counterTargetPlayerId
+      ? nuclearCounterSourceSnapshot(country.name, playerId, counterTargetPlayerId)
+      : null;
     game.troops[country.name] = available - loss;
     remaining -= loss;
     losses.push(`${loss} from ${country.name}`);
-    if (nuclear && loss > 0) nuclearSources.push(country);
+    if (counterSource) nuclearSources.push(counterSource);
     if (countryTroops(country.name) <= 0) {
       removeCountryOwner(country.name);
       losses[losses.length - 1] += " (lost)";
@@ -1366,7 +1381,7 @@ function applySpecificCountryTroopLoss(countryName, amount) {
   return { prescribed: amount, lost: loss, remaining: amount - loss, losses };
 }
 
-function applyNuclearStrike({ sourceName, fromPlayerId, targetPlayerId, automatic = false, optionalPlayerId = null, depth = 0 }) {
+function applyNuclearStrike({ sourceName, fromPlayerId, targetPlayerId, strikeableTargets = null, automatic = false, optionalPlayerId = null, depth = 0 }) {
   if (depth > 30 || !fromPlayerId || !targetPlayerId || fromPlayerId === targetPlayerId) return;
   const sourceCountry = countryByName.get(sourceName);
   const sourcePlayer = game.players.find((player) => player.id === fromPlayerId);
@@ -1385,7 +1400,8 @@ function applyNuclearStrike({ sourceName, fromPlayerId, targetPlayerId, automati
     targetName: sourceName,
     actorId: targetPlayerId,
     defenderId: fromPlayerId,
-    action: "is counter-retaliated against by"
+    action: "is counter-retaliated against by",
+    strikeableTargets
   });
 }
 
@@ -1402,7 +1418,7 @@ function applyNuclearRetaliation({ targetName, actorId, defenderId = null, exclu
   executeNuclearRetaliation({ targetName, actorId, defenderId, excludeCountry, action });
 }
 
-function queueNuclearRetaliationDecision({ targetName, actorId, defenderId, excludeCountry = null, action = "targets" }) {
+function queueNuclearRetaliationDecision({ targetName, actorId, defenderId, excludeCountry = null, action = "targets", strikeableTargets = null }) {
   game.pendingNuclearRetaliations ||= [];
   const duplicate = game.pendingNuclearRetaliations.some((pending) => (
     pending.targetName === targetName
@@ -1413,8 +1429,8 @@ function queueNuclearRetaliationDecision({ targetName, actorId, defenderId, excl
   if (duplicate) return;
   const actor = game.players.find((player) => player.id === actorId);
   const defender = game.players.find((player) => player.id === defenderId);
-  const strikeableTargets = strikeableNuclearTargets({ sourceName: targetName, targetPlayerId: actorId, retaliatorPlayerId: defenderId, excludeCountry }).map((country) => country.name);
-  if (!strikeableTargets.length) {
+  const targetNames = strikeableTargets || strikeableNuclearTargets({ sourceName: targetName, targetPlayerId: actorId, retaliatorPlayerId: defenderId, excludeCountry }).map((country) => country.name);
+  if (!targetNames.length) {
     addPrivateLog(`${defender?.name || "Defender"} has no legal nuclear retaliation targets from ${targetName}.`, [defenderId, actorId]);
     return;
   }
@@ -1425,7 +1441,7 @@ function queueNuclearRetaliationDecision({ targetName, actorId, defenderId, excl
     defenderId,
     excludeCountry,
     action,
-    strikeableTargets,
+    strikeableTargets: targetNames,
     round: game.round
   });
   addPrivateLog(`${defender?.name || "Defender"} may choose whether to retaliate from nuclear power ${targetName} against ${actor?.name || "the attacker"}.`, [defenderId, actorId]);
@@ -1437,7 +1453,7 @@ function executeNuclearRetaliation({ targetName, actorId, defenderId = null, exc
   const actor = game.players.find((player) => player.id === actorId);
   if (!actor) return;
   const amount = Math.max(0, targetCountry.magnitude || 0);
-  const result = applyOrderedTroopLoss(actorId, amount, excludeCountry, targetName);
+  const result = applyOrderedTroopLoss(actorId, amount, excludeCountry, targetName, defenderId);
   addPrivateLog(`${actor.name} ${action} nuclear power ${targetName}; retaliation follows the nuclear loss order and costs ${result.lost}/${amount} troops: ${describeLossResult(result)}.`, [actorId, defenderId]);
 
   if (!defenderId || defenderId === actorId) return;
@@ -1446,6 +1462,7 @@ function executeNuclearRetaliation({ targetName, actorId, defenderId = null, exc
       sourceName: nuclearCountry.name,
       fromPlayerId: actorId,
       targetPlayerId: defenderId,
+      strikeableTargets: nuclearCountry.strikeableTargets,
       automatic: false,
       optionalPlayerId: actorId
     });
@@ -1489,10 +1506,13 @@ function executeChosenNuclearRetaliation(pending) {
       alert("Choose a listed number or country name.");
       continue;
     }
+    const counterSource = isNuclearPower(chosen.name, pending.actorId)
+      ? nuclearCounterSourceSnapshot(chosen.name, pending.actorId, pending.defenderId)
+      : null;
     const result = applySpecificCountryTroopLoss(chosen.name, remaining);
     remaining -= result.lost;
     losses.push(...result.losses);
-    if (isNuclearPower(chosen.name, pending.actorId) && result.lost > 0) nuclearSources.push(chosen);
+    if (counterSource && result.lost > 0) nuclearSources.push(counterSource);
   }
   const prescribed = Math.max(0, sourceCountry.magnitude || 0);
   const lost = prescribed - remaining;
@@ -1517,6 +1537,7 @@ function resolvePendingNuclearDecision(id, retaliate) {
         sourceName: nuclearCountry.name,
         fromPlayerId: pending.actorId,
         targetPlayerId: pending.defenderId,
+        strikeableTargets: nuclearCountry.strikeableTargets,
         automatic: false,
         optionalPlayerId: pending.actorId
       });

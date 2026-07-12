@@ -373,6 +373,8 @@ Counter-retaliation follows the same rules as nuclear retaliation. The eligible 
 
 If a player's nuclear country was hit by retaliation, they may counter-retaliate even if that retaliation caused them to lose the nuclear country.
 
+Retaliation and counter-retaliation target options are captured at the moment the relevant nuclear country is hit. If that nuclear country later loses all troops, its queued retaliation still uses the visibility and target list it had when it was hit. If several nuclear countries are hit in order, each one captures its own target list at the moment it is hit.
+
 If a counter-retaliation hits one of the opponent's nuclear countries, that opponent gets the same choice to counter-retaliate under the same targeting rules.
 
 The chain continues as long as eligible nuclear countries are hit and eligible players choose to keep retaliating.
