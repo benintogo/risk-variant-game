@@ -2553,6 +2553,10 @@ function appendMapLabel(svg, entry, onSelect) {
   });
   text.addEventListener("click", (event) => {
     event.stopPropagation();
+    if (suppressMapClick) {
+      suppressMapClick = false;
+      return;
+    }
     onSelect(entry.country.name);
   });
   svg.appendChild(text);
@@ -2653,6 +2657,10 @@ function renderPlayerMapFor(player, { svgId, detailsId, unmappedId, labelId }) {
     path.appendChild(title);
     path.addEventListener("click", (event) => {
       event.stopPropagation();
+      if (suppressMapClick) {
+        suppressMapClick = false;
+        return;
+      }
       selectVisibleMapCountry(country.name, visible, playerId, svgId, detailsId);
     });
     svg.appendChild(path);
