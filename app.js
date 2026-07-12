@@ -1439,10 +1439,11 @@ function executeChosenNuclearRetaliation(pending) {
   const sourceCountry = countryByName.get(pending.targetName);
   const defender = game.players.find((player) => player.id === pending.defenderId);
   const actor = game.players.find((player) => player.id === pending.actorId);
-  if (!sourceCountry || !actor) return { prescribed: 0, lost: 0, remaining: 0, losses: [], nuclearSources: [] };
+  if (!sourceCountry || !actor) return { prescribed: 0, lost: 0, remaining: 0, losses: [], nuclearSources: [], stoppedEarly: false };
   let remaining = Math.max(0, sourceCountry.magnitude || 0);
   const losses = [];
   const nuclearSources = [];
+  let stoppedEarly = false;
   while (remaining > 0) {
     const options = (pending.strikeableTargets || [])
       .map((name) => countryByName.get(name))
@@ -1451,7 +1452,10 @@ function executeChosenNuclearRetaliation(pending) {
     if (!options.length) break;
     const menu = options.map((country, index) => `${index + 1}. ${country.name} (${countryTroops(country.name)} troops)`).join("\n");
     const answer = prompt(`${defender?.name || "You"}: choose a nuclear retaliation target from ${pending.targetName}.\n${remaining} troop loss${remaining === 1 ? "" : "es"} remaining. The game will remove troops from the chosen country up to that remaining total.\n\n${menu}`);
-    if (answer === null) break;
+    if (answer === null) {
+      stoppedEarly = true;
+      break;
+    }
     const index = Number(answer) - 1;
     const chosen = options[index] || options.find((country) => country.name.toLowerCase() === String(answer).trim().toLowerCase());
     if (!chosen) {
@@ -1466,7 +1470,10 @@ function executeChosenNuclearRetaliation(pending) {
   const prescribed = Math.max(0, sourceCountry.magnitude || 0);
   const lost = prescribed - remaining;
   addPrivateLog(`${defender?.name || "Defender"} retaliates with ${pending.targetName} against ${actor.name}'s chosen countries; ${lost}/${prescribed} troops lost: ${losses.length ? losses.join("; ") : "no troops available"}.`, [pending.defenderId, pending.actorId]);
-  return { prescribed, lost, remaining, losses, nuclearSources };
+  if (stoppedEarly && remaining > 0) {
+    addPrivateLog(`${defender?.name || "Defender"} stops nuclear retaliation from ${pending.targetName} with ${remaining} troop loss${remaining === 1 ? "" : "es"} unused.`, [pending.defenderId, pending.actorId]);
+  }
+  return { prescribed, lost, remaining, losses, nuclearSources, stoppedEarly };
 }
 
 function resolvePendingNuclearDecision(id, retaliate) {
@@ -1478,7 +1485,7 @@ function resolvePendingNuclearDecision(id, retaliate) {
   promptedNuclearDecisionIds.delete(id);
   if (retaliate) {
     const result = executeChosenNuclearRetaliation(pending);
-    if (pending.deferUnpaidRegionPenalty && result.remaining > 0) {
+    if (pending.deferUnpaidRegionPenalty && result.remaining > 0 && !result.stoppedEarly) {
       addFutureRegionBonusPenalty(pending.actorId, result.remaining, `unpaid retaliation from ${pending.targetName}`);
     }
     for (const nuclearCountry of result.nuclearSources) {
@@ -1507,7 +1514,7 @@ function promptPendingNuclearDecision() {
   const defender = game.players.find((player) => player.id === pending.defenderId);
   setTimeout(() => {
     if (!game || !(game.pendingNuclearRetaliations || []).some((item) => item.id === pending.id)) return;
-    const retaliate = confirm(`${defender?.name || "You"} may use nuclear retaliation from ${pending.targetName} against ${actor?.name || "the attacker"}. Retaliate?`);
+    const retaliate = confirm(`${defender?.name || "You"} may use nuclear retaliation from ${pending.targetName} against ${actor?.name || "the attacker"}.\n\nPress OK to retaliate.\nPress Cancel to decline.`);
     resolvePendingNuclearDecision(pending.id, retaliate);
   }, 0);
 }
