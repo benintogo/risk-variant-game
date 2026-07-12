@@ -1451,8 +1451,12 @@ function executeChosenNuclearRetaliation(pending) {
       .sort((a, b) => a.name.localeCompare(b.name));
     if (!options.length) break;
     const menu = options.map((country, index) => `${index + 1}. ${country.name} (${countryTroops(country.name)} troops)`).join("\n");
-    const answer = prompt(`${defender?.name || "You"}: choose a nuclear retaliation target from ${pending.targetName}.\n${remaining} troop loss${remaining === 1 ? "" : "es"} remaining. The game will remove troops from the chosen country up to that remaining total.\n\n${menu}`);
+    const answer = prompt(`${defender?.name || "You"}: choose a nuclear retaliation target from ${pending.targetName}, or enter 0 to stop retaliating.\n${remaining} troop loss${remaining === 1 ? "" : "es"} remaining. The game will remove troops from the chosen country up to that remaining total.\n\n0. Stop retaliating\n${menu}`);
     if (answer === null) {
+      stoppedEarly = true;
+      break;
+    }
+    if (String(answer).trim() === "0") {
       stoppedEarly = true;
       break;
     }
