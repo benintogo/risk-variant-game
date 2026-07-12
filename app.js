@@ -1475,6 +1475,18 @@ function pendingNuclearDecisionForSession() {
   return (game.pendingNuclearRetaliations || []).find((pending) => pending.defenderId === player.id) || null;
 }
 
+function currentNuclearRetaliationOptions(pending) {
+  return (pending?.strikeableTargets || [])
+    .map((name) => countryByName.get(name))
+    .filter((country) => (
+      country
+      && game.ownership[country.name] === pending.actorId
+      && country.name !== pending.excludeCountry
+      && countryTroops(country.name) > 0
+    ))
+    .sort((a, b) => a.name.localeCompare(b.name));
+}
+
 function executeChosenNuclearRetaliation(pending) {
   const sourceCountry = countryByName.get(pending.targetName);
   const defender = game.players.find((player) => player.id === pending.defenderId);
@@ -1485,10 +1497,7 @@ function executeChosenNuclearRetaliation(pending) {
   const nuclearSources = [];
   let stoppedEarly = false;
   while (remaining > 0) {
-    const options = (pending.strikeableTargets || [])
-      .map((name) => countryByName.get(name))
-      .filter((country) => country && game.ownership[country.name] === pending.actorId && country.name !== pending.excludeCountry && countryTroops(country.name) > 0)
-      .sort((a, b) => a.name.localeCompare(b.name));
+    const options = currentNuclearRetaliationOptions(pending);
     if (!options.length) break;
     const menu = options.map((country, index) => `${index + 1}. ${country.name} (${countryTroops(country.name)} troops)`).join("\n");
     const answer = prompt(`${defender?.name || "You"}: choose a nuclear retaliation target from ${pending.targetName}, or enter 0 to stop retaliating.\n${remaining} troop loss${remaining === 1 ? "" : "es"} remaining. The game will remove troops from the chosen country up to that remaining total.\n\n0. Stop retaliating\n${menu}`);
@@ -1554,6 +1563,15 @@ function resolvePendingNuclearDecision(id, retaliate) {
 function promptPendingNuclearDecision() {
   const pending = pendingNuclearDecisionForSession();
   if (!pending || promptedNuclearDecisionIds.has(pending.id)) return;
+  if (!currentNuclearRetaliationOptions(pending).length) {
+    const defender = game.players.find((player) => player.id === pending.defenderId);
+    const actor = game.players.find((player) => player.id === pending.actorId);
+    game.pendingNuclearRetaliations = (game.pendingNuclearRetaliations || []).filter((item) => item.id !== pending.id);
+    addPrivateLog(`${defender?.name || "Defender"} has no remaining legal nuclear retaliation targets from ${pending.targetName} against ${actor?.name || "the opponent"}.`, [pending.defenderId, pending.actorId]);
+    saveGame();
+    render();
+    return;
+  }
   promptedNuclearDecisionIds.add(pending.id);
   const actor = game.players.find((player) => player.id === pending.actorId);
   const defender = game.players.find((player) => player.id === pending.defenderId);
