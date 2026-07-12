@@ -363,6 +363,28 @@ function countryTroops(name) {
   return Number(game.troops[name] || 0);
 }
 
+function capitalCountryFor(playerId) {
+  if (!playerId) return null;
+  return ownedCountries(playerId)
+    .map((country) => ({ country, since: game.ownershipSince?.[country.name] || Infinity }))
+    .sort((a, b) => a.since - b.since || a.country.name.localeCompare(b.country.name))[0]?.country || null;
+}
+
+function isCapitalCountry(countryName, playerId = game?.ownership?.[countryName]) {
+  return Boolean(countryName && playerId && capitalCountryFor(playerId)?.name === countryName);
+}
+
+function attackDiceLimitFor(fromName, baseLimit) {
+  const owner = game.ownership[fromName];
+  return Math.max(1, Number(baseLimit || 0) + (isCapitalCountry(fromName, owner) ? 1 : 0));
+}
+
+function defenderDiceFor(countryName) {
+  const owner = game.ownership[countryName];
+  const baseLimit = 2 + (isCapitalCountry(countryName, owner) ? 1 : 0);
+  return Math.min(baseLimit, countryTroops(countryName));
+}
+
 function isNuclearPower(countryName, ownerId = game?.ownership?.[countryName]) {
   if (NUCLEAR_POWERS.has(countryName)) return true;
   const requiredCountry = CONDITIONAL_NUCLEAR_POWERS[countryName];
@@ -894,13 +916,14 @@ function attackOptionsFor(fromName) {
   const visibleLinks = new Map(connectedNeighbors(from, "all").map((link) => [link.name, link.type]));
   for (const border of from.land) {
     if (game.ownership[border] && game.ownership[border] !== owner) {
-      options.set(border, { target: border, type: "land", maxDice: 3 });
+      options.set(border, { target: border, type: "land", maxDice: attackDiceLimitFor(fromName, 3) });
     }
   }
   for (const border of from.maritime) {
     if (game.ownership[border] && game.ownership[border] !== owner) {
       const existing = options.get(border);
-      if (!existing || existing.maxDice > 2) options.set(border, { target: border, type: "maritime", maxDice: 2 });
+      const maxDice = attackDiceLimitFor(fromName, 2);
+      if (!existing || existing.maxDice > maxDice) options.set(border, { target: border, type: "maritime", maxDice });
     }
   }
   for (const country of countries) {
@@ -908,11 +931,11 @@ function attackOptionsFor(fromName) {
       const linkType = visibleLinks.get(country.name);
       if (linkType && linkType !== "network") continue;
       if (linkType === "network" && game.ownership[country.name]) {
-        options.set(country.name, { target: country.name, type: "network region", maxDice: 1 });
+        options.set(country.name, { target: country.name, type: "network region", maxDice: attackDiceLimitFor(fromName, 1) });
         continue;
       }
       if (!options.has(country.name)) {
-        options.set(country.name, { target: country.name, type: "limited region", maxDice: 1, limited: true });
+        options.set(country.name, { target: country.name, type: "limited region", maxDice: attackDiceLimitFor(fromName, 1), limited: true });
       }
     }
   }
@@ -925,6 +948,7 @@ function hasCompleteInfoAbout(playerId, countryName) {
 
 function viableAttackOptionsFor(fromName) {
   const playerId = game.ownership[fromName];
+  if (countryTroops(fromName) <= 1) return [];
   return attackOptionsFor(fromName).filter((option) => {
     const targetOwner = game.ownership[option.target];
     if (targetOwner) return true;
@@ -2380,6 +2404,7 @@ function visibleDetailHtml(country, visibility, playerId) {
   const owner = game.ownership[country.name];
   const enemyTroopsVisible = full && owner && owner !== playerId;
   const troopText = full && !owner ? "0" : visibility === "Owned" || enemyTroopsVisible ? `${countryTroops(country.name)}` : "Hidden";
+  const capitalText = full && owner ? `<p>Capital: ${isCapitalCountry(country.name, owner) ? "Yes" : "No"}</p>` : "";
   return `
     <strong>${country.name}</strong>
     <p><span class="badge ${visibility === "Owned" ? "gold" : ""}">${visibility}</span></p>
@@ -2388,6 +2413,7 @@ function visibleDetailHtml(country, visibility, playerId) {
     ${full ? `<p>Magnitude: ${country.magnitude}</p>` : ""}
     ${full ? `<p>Owner: ${playerName(owner)}</p>` : ""}
     ${full ? `<p>Troops: ${troopText}</p>` : ""}
+    ${capitalText}
   `;
 }
 
@@ -2580,6 +2606,7 @@ function moderatorDetailHtml(country) {
     <p>Magnitude: ${country.magnitude}</p>
     <p>Owner: ${playerName(owner)}</p>
     <p>Troops: ${countryTroops(country.name) || 0}</p>
+    ${owner ? `<p>Capital: ${isCapitalCountry(country.name, owner) ? "Yes" : "No"}</p>` : ""}
   `;
 }
 
@@ -3118,14 +3145,19 @@ function handleAttack(event) {
   const attackDice = Number($("attackDice").value);
   if (!attacker || !from || !target || !attackDice) return;
   const option = viableAttackOptionsFor(from).find((item) => item.target === target);
+  const maxAttackDice = option ? Math.min(option.maxDice, countryTroops(from) - 1) : 0;
+  if (!option || attackDice < 1 || attackDice > maxAttackDice) {
+    alert("That attack dice choice is not available.");
+    return;
+  }
   if (option?.limited) {
-    handleLimitedAttack(attacker, from, target);
+    handleLimitedAttack(attacker, from, target, option);
     return;
   }
   markTurnAction();
   const defenderId = game.ownership[target];
   const targetIsNuclear = isNuclearPower(target, defenderId);
-  const defenderDice = Math.min(2, countryTroops(target));
+  const defenderDice = defenderDiceFor(target);
   const attackRolls = rollDice(attackDice);
   const defendRolls = rollDice(defenderDice);
   let attackerLoss = 0;
@@ -3136,7 +3168,11 @@ function handleAttack(event) {
   }
   game.troops[from] -= attackerLoss;
   game.troops[target] -= defenderLoss;
-  addPrivateLog(`${attacker.name} attacks ${target} from ${from}. Attack rolls ${attackRolls.join(", ")}; defense rolls ${defendRolls.join(", ")}. Losses: ${attackerLoss} attacker, ${defenderLoss} defender.`, [attacker.id, defenderId]);
+  const capitalNotes = [
+    isCapitalCountry(from, attacker.id) ? `${from} is ${attacker.name}'s capital` : "",
+    isCapitalCountry(target, defenderId) ? `${target} is ${playerName(defenderId)}'s capital` : ""
+  ].filter(Boolean);
+  addPrivateLog(`${attacker.name} attacks ${target} from ${from}. Attack rolls ${attackRolls.join(", ")}; defense rolls ${defendRolls.join(", ")}. Losses: ${attackerLoss} attacker, ${defenderLoss} defender.${capitalNotes.length ? ` Capital bonus: ${capitalNotes.join("; ")}.` : ""}`, [attacker.id, defenderId]);
   let conquered = false;
   if (countryTroops(target) <= 0) {
     const requestedMove = Number($("conquestMove").value || attackDice);
@@ -3163,7 +3199,7 @@ function handleAttack(event) {
   render();
 }
 
-function handleLimitedAttack(attacker, from, target) {
+function handleLimitedAttack(attacker, from, target, option = null) {
   const defenderId = game.ownership[target];
   const targetCountry = countryByName.get(target);
   const targetIsNuclear = isNuclearPower(target, defenderId);
@@ -3201,15 +3237,23 @@ function handleLimitedAttack(attacker, from, target) {
   }
 
   markTurnAction();
-  const attackRoll = rollDice(1);
-  const defendRoll = rollDice(Math.min(2, countryTroops(target)));
-  const attackerLoses = attackRoll[0] <= defendRoll[0];
+  const attackDice = Math.max(1, Math.min(option?.maxDice || attackDiceLimitFor(from, 1), countryTroops(from) - 1));
+  const defenderDice = defenderDiceFor(target);
+  const attackRolls = rollDice(attackDice);
+  const defendRolls = rollDice(defenderDice);
+  let attackerLoss = 0;
+  let defenderLoss = 0;
+  for (let i = 0; i < Math.min(attackRolls.length, defendRolls.length); i += 1) {
+    if (attackRolls[i] > defendRolls[i]) defenderLoss += 1;
+    else attackerLoss += 1;
+  }
   let conquered = false;
-  if (attackerLoses) {
-    game.troops[from] -= 1;
-    addPrivateLog(`${attacker.name} probes ${target} from ${from}. One attacking troop dies.`, [attacker.id, defenderId]);
-  } else {
-    game.troops[target] -= 1;
+  if (attackerLoss > 0) {
+    game.troops[from] -= attackerLoss;
+    addPrivateLog(`${attacker.name} probes ${target} from ${from}. ${attackerLoss} attacking troop${attackerLoss === 1 ? "" : "s"} die${attackerLoss === 1 ? "s" : ""}.`, [attacker.id, defenderId]);
+  }
+  if (defenderLoss > 0) {
+    game.troops[target] -= defenderLoss;
     if (countryTroops(target) <= 0) {
       const requestedMove = Number($("conquestMove").value || 1);
       const move = Math.max(1, Math.min(requestedMove, countryTroops(from) - 1));
@@ -3219,9 +3263,11 @@ function handleLimitedAttack(attacker, from, target) {
       conquered = true;
       addPrivateLog(`${attacker.name} probes ${target} from ${from}, conquers it, and moves ${move} troops in.`, [attacker.id, defenderId]);
       announceNewRegionControls(attacker.id);
-    } else {
+    } else if (attackerLoss <= 0) {
       addPrivateLog(`${attacker.name} probes ${target} from ${from}. No visible result.`, [attacker.id]);
     }
+  } else if (attackerLoss <= 0) {
+    addPrivateLog(`${attacker.name} probes ${target} from ${from}. No visible result.`, [attacker.id]);
   }
   if (targetIsNuclear) {
     applyNuclearRetaliation({
