@@ -146,6 +146,10 @@ const NUCLEAR_POWERS = new Set([
   "Russia"
 ]);
 
+const GLOBAL_VISIBILITY_COUNTRIES = new Set(["United States", "China", "Russia", "India", "Japan"]);
+const GLOBAL_VISIBILITY_COMBO = ["Germany", "Italy", "Czechia"];
+const STRATEGIC_NUCLEAR_RETALIATORS = new Set(["United States", "Russia", "China", "United Kingdom", "France", "India", "Israel", "North Korea"]);
+
 const CONDITIONAL_NUCLEAR_POWERS = {
   Belarus: "Russia",
   Germany: "United States",
@@ -1163,7 +1167,7 @@ function checkEliminations() {
       }
       player.eliminated = true;
       player.reserve = 0;
-      game.pendingNuclearRetaliations = (game.pendingNuclearRetaliations || []).filter((pending) => pending.defenderId !== player.id && pending.actorId !== player.id);
+      game.pendingNuclearRetaliations = (game.pendingNuclearRetaliations || []).filter((pending) => pending.actorId !== player.id);
       addPrivateLog(`${player.name} is eliminated.`, [player.id]);
     }
   }
@@ -1228,10 +1232,49 @@ function nuclearRetaliationGeographyRank(country, sourceCountry) {
   return 3;
 }
 
+function isNormallyStrikeableFrom(sourceCountry, targetCountry) {
+  if (!sourceCountry || !targetCountry) return false;
+  const landLinked = sourceCountry.land.includes(targetCountry.name) || targetCountry.land.includes(sourceCountry.name);
+  const maritimeLinked = sourceCountry.maritime.includes(targetCountry.name) || targetCountry.maritime.includes(sourceCountry.name);
+  const sameRegion = sourceCountry.region && sourceCountry.region === targetCountry.region;
+  return landLinked || maritimeLinked || sameRegion;
+}
+
+function sourceCountryVisibilityNames(sourceCountry) {
+  if (!sourceCountry) return new Set();
+  const names = new Set([sourceCountry.name]);
+  for (const link of connectedNeighbors(sourceCountry, "all")) names.add(link.name);
+  for (const country of countries) {
+    if (country.region === sourceCountry.region) names.add(country.name);
+  }
+  return names;
+}
+
+function strikeableNuclearTargets({ sourceName, targetPlayerId, retaliatorPlayerId = null, excludeCountry = null }) {
+  const sourceCountry = countryByName.get(sourceName);
+  if (!sourceCountry || !targetPlayerId) return [];
+  let allowedNames = null;
+  if (STRATEGIC_NUCLEAR_RETALIATORS.has(sourceName)) {
+    allowedNames = retaliatorPlayerId
+      ? new Set(visibleCountriesFor(retaliatorPlayerId).map(({ country }) => country.name))
+      : sourceCountryVisibilityNames(sourceCountry);
+    for (const name of sourceCountryVisibilityNames(sourceCountry)) allowedNames.add(name);
+    if (GLOBAL_VISIBILITY_COUNTRIES.has(sourceName)) {
+      for (const country of countries) allowedNames.add(country.name);
+    }
+  }
+  return ownedCountries(targetPlayerId)
+    .filter((country) => country.name !== excludeCountry && countryTroops(country.name) > 0)
+    .filter((country) => allowedNames ? allowedNames.has(country.name) : isNormallyStrikeableFrom(sourceCountry, country))
+    .sort((a, b) => a.name.localeCompare(b.name));
+}
+
 function nuclearLossOrder(playerId, excludeCountry = null, sourceCountryName = null) {
   const sourceCountry = sourceCountryName ? countryByName.get(sourceCountryName) : null;
+  const strikeable = new Set(strikeableNuclearTargets({ sourceName: sourceCountryName, targetPlayerId: playerId, excludeCountry }).map((country) => country.name));
   return ownedCountries(playerId)
     .filter((country) => country.name !== excludeCountry && countryTroops(country.name) > 0)
+    .filter((country) => !sourceCountryName || strikeable.has(country.name))
     .map((country) => ({
       country,
       nuclear: isNuclearPower(country.name, playerId),
@@ -1343,6 +1386,11 @@ function queueNuclearRetaliationDecision({ targetName, actorId, defenderId, excl
   if (duplicate) return;
   const actor = game.players.find((player) => player.id === actorId);
   const defender = game.players.find((player) => player.id === defenderId);
+  const strikeableTargets = strikeableNuclearTargets({ sourceName: targetName, targetPlayerId: actorId, retaliatorPlayerId: defenderId, excludeCountry }).map((country) => country.name);
+  if (!strikeableTargets.length) {
+    addPrivateLog(`${defender?.name || "Defender"} has no legal nuclear retaliation targets from ${targetName}.`, [defenderId, actorId]);
+    return;
+  }
   game.pendingNuclearRetaliations.push({
     id: `nuke-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
     targetName,
@@ -1351,6 +1399,7 @@ function queueNuclearRetaliationDecision({ targetName, actorId, defenderId, excl
     excludeCountry,
     action,
     deferUnpaidRegionPenalty,
+    strikeableTargets,
     round: game.round
   });
   addPrivateLog(`${defender?.name || "Defender"} may choose whether to retaliate from nuclear power ${targetName} against ${actor?.name || "the attacker"}.`, [defenderId, actorId]);
@@ -1382,8 +1431,42 @@ function executeNuclearRetaliation({ targetName, actorId, defenderId = null, exc
 
 function pendingNuclearDecisionForSession() {
   const player = sessionPlayer();
-  if (!player || player.eliminated) return null;
+  if (!player) return null;
   return (game.pendingNuclearRetaliations || []).find((pending) => pending.defenderId === player.id) || null;
+}
+
+function executeChosenNuclearRetaliation(pending) {
+  const sourceCountry = countryByName.get(pending.targetName);
+  const defender = game.players.find((player) => player.id === pending.defenderId);
+  const actor = game.players.find((player) => player.id === pending.actorId);
+  if (!sourceCountry || !actor) return { prescribed: 0, lost: 0, remaining: 0, losses: [], nuclearSources: [] };
+  let remaining = Math.max(0, sourceCountry.magnitude || 0);
+  const losses = [];
+  const nuclearSources = [];
+  while (remaining > 0) {
+    const options = (pending.strikeableTargets || [])
+      .map((name) => countryByName.get(name))
+      .filter((country) => country && game.ownership[country.name] === pending.actorId && country.name !== pending.excludeCountry && countryTroops(country.name) > 0)
+      .sort((a, b) => a.name.localeCompare(b.name));
+    if (!options.length) break;
+    const menu = options.map((country, index) => `${index + 1}. ${country.name} (${countryTroops(country.name)} troops)`).join("\n");
+    const answer = prompt(`${defender?.name || "You"}: choose a nuclear retaliation target from ${pending.targetName}.\n${remaining} troop loss${remaining === 1 ? "" : "es"} remaining.\n\n${menu}`);
+    if (answer === null) break;
+    const index = Number(answer) - 1;
+    const chosen = options[index] || options.find((country) => country.name.toLowerCase() === String(answer).trim().toLowerCase());
+    if (!chosen) {
+      alert("Choose a listed number or country name.");
+      continue;
+    }
+    const result = applySpecificCountryTroopLoss(chosen.name, remaining);
+    remaining -= result.lost;
+    losses.push(...result.losses);
+    if (isNuclearPower(chosen.name, pending.actorId) && result.lost > 0) nuclearSources.push(chosen);
+  }
+  const prescribed = Math.max(0, sourceCountry.magnitude || 0);
+  const lost = prescribed - remaining;
+  addPrivateLog(`${defender?.name || "Defender"} retaliates with ${pending.targetName} against ${actor.name}'s chosen countries; ${lost}/${prescribed} troops lost: ${losses.length ? losses.join("; ") : "no troops available"}.`, [pending.defenderId, pending.actorId]);
+  return { prescribed, lost, remaining, losses, nuclearSources };
 }
 
 function resolvePendingNuclearDecision(id, retaliate) {
@@ -1394,7 +1477,19 @@ function resolvePendingNuclearDecision(id, retaliate) {
   game.pendingNuclearRetaliations = (game.pendingNuclearRetaliations || []).filter((item) => item.id !== id);
   promptedNuclearDecisionIds.delete(id);
   if (retaliate) {
-    executeNuclearRetaliation(pending);
+    const result = executeChosenNuclearRetaliation(pending);
+    if (pending.deferUnpaidRegionPenalty && result.remaining > 0) {
+      addFutureRegionBonusPenalty(pending.actorId, result.remaining, `unpaid retaliation from ${pending.targetName}`);
+    }
+    for (const nuclearCountry of result.nuclearSources) {
+      applyNuclearStrike({
+        sourceName: nuclearCountry.name,
+        fromPlayerId: pending.actorId,
+        targetPlayerId: pending.defenderId,
+        automatic: false,
+        optionalPlayerId: pending.actorId
+      });
+    }
     checkEliminations();
     refreshRegionControlAnnouncements();
   } else {
@@ -1447,6 +1542,14 @@ function concludeGameIfWon() {
 
 function visibleCountriesFor(playerId) {
   const owned = ownedCountries(playerId);
+  if (playerHasGlobalVisibility(playerId)) {
+    const visible = new Map();
+    for (const country of countries) visible.set(country.name, game.ownership[country.name] === playerId ? "Owned" : "Global");
+    if (owned.some((country) => ANTARCTICA_CONNECTIONS.has(country.name))) visible.set(ANTARCTICA_NAME, "Antarctica");
+    return [...visible.entries()]
+      .map(([name, visibility]) => ({ country: placeByName(name), visibility }))
+      .sort((a, b) => a.country.name.localeCompare(b.country.name));
+  }
   const visible = new Map();
   for (const country of owned) {
     visible.set(country.name, "Owned");
@@ -1467,6 +1570,12 @@ function visibleCountriesFor(playerId) {
   return [...visible.entries()]
     .map(([name, visibility]) => ({ country: placeByName(name), visibility }))
     .sort((a, b) => a.country.name.localeCompare(b.country.name));
+}
+
+function playerHasGlobalVisibility(playerId) {
+  const ownedNames = new Set(ownedCountries(playerId).map((country) => country.name));
+  return [...GLOBAL_VISIBILITY_COUNTRIES].some((name) => ownedNames.has(name))
+    || GLOBAL_VISIBILITY_COMBO.every((name) => ownedNames.has(name));
 }
 
 function setOptions(select, items, getLabel = (x) => x, getValue = (x) => x) {

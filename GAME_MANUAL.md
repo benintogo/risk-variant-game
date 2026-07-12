@@ -173,6 +173,8 @@ For partially visible countries, players see only the country name and region.
 
 Countries that are not owned, bordering, network-connected, Antarctica-visible, or in the same region are hidden from that player.
 
+The entire world map becomes visible to a player if they own United States, China, Russia, India, or Japan. The entire world map also becomes visible if they own Germany, Italy, and Czechia at the same time.
+
 Country labels use slightly different font styles by region. These styles are only applied to countries already visible to the player and do not reveal hidden countries.
 
 ## Actions on a Turn
@@ -325,24 +327,33 @@ If a player attacks, conquers, or claims a nuclear power, that nuclear power may
 
 The retaliation removes troops equal to the nuclear country's magnitude.
 
-Nuclear retaliation does not need to follow normal attack geography.
-
 If the nuclear country was conquered or claimed, its own newly placed troops are not eligible targets for its retaliation.
 
-If the initial target was unowned, it retaliates automatically once. No counter-retaliation chain happens.
+If the initial target was unowned, it retaliates automatically once. No counter-retaliation chain happens. Its automatic targets are limited to countries it could strike under the nuclear targeting rules below.
 
-If the initial target was owned by another player, that owner chooses whether to use nuclear retaliation. If they do, retaliation can create a chain.
+If the initial target was owned by another player, that owner chooses whether to use nuclear retaliation. If they do, they choose retaliation targets one at a time until the required number of troops has been removed or there are no legal targets left. Retaliation can create a chain.
 
-## Nuclear Loss Order
+If a player loses their last country and that country was nuclear, they may still choose nuclear retaliation from that country.
 
-When nuclear retaliation removes troops from a player, losses are taken from that player's owned countries in this order:
+## Nuclear Retaliation Targets
 
-1. Non-nuclear countries first.
-2. Among non-nuclear countries, highest magnitude first.
-3. If non-nuclear countries tie in magnitude, the country held the longest loses troops first.
-4. Nuclear countries are moved to the bottom of the loss order.
-5. Among nuclear countries, lowest magnitude first.
-6. If nuclear countries tie in magnitude, the country held for the shortest time loses troops first.
+For most nuclear countries, retaliation targets are limited to opponent countries that are normally in attack range of the retaliating country:
+
+- Countries sharing a land border.
+- Countries sharing a maritime border.
+- Countries in the same region.
+
+United States, Russia, China, United Kingdom, France, India, Israel, and North Korea are strategic nuclear retaliators. If one of those countries retaliates while owned by a player, it may target any opponent country visible to that player. If an unowned strategic nuclear country retaliates, it is treated as its own one-country player for visibility.
+
+For automatic unowned nuclear retaliation, legal targets are chosen in this order:
+
+1. Land-border targets.
+2. Maritime-border targets.
+3. Same-region targets.
+4. Non-nuclear before nuclear.
+5. Highest magnitude.
+6. Fewest troops.
+7. Longest held.
 
 If a country is reduced to 0 troops by nuclear retaliation, that player loses the country.
 
