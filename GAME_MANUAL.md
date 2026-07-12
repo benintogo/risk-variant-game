@@ -217,9 +217,11 @@ The attacker may roll:
 
 Each player has a capital country: the country that player has held the longest among the countries they currently own. If a player loses their capital, their next longest-held country becomes their capital.
 
-A capital country attacks and defends with 1 additional die beyond the normal limit. For example, a capital may attack across a land border with up to 4 dice, across a maritime border with up to 3 dice, and by limited regional attack with up to 2 dice. The origin country must still have enough movable troops to support the attack dice.
+A capital country does not change whether an attack is legal. The origin country must still have enough movable troops to attack, and the normal kept-dice limits still apply.
 
-The defender normally rolls up to 2 dice, limited by the number of troops in the defending country. A defending capital may roll up to 3 dice, still limited by its troop count.
+When a capital attacks or defends, it rolls 1 extra die, then removes its lowest die before dice are compared. This improves the capital's selection of dice without increasing the maximum number of troops that can be lost in that combat.
+
+The defender normally keeps up to 2 dice, limited by the number of troops in the defending country. A defending capital rolls 1 extra die and drops the lowest before comparison.
 
 Dice are sorted from highest to lowest and compared in order.
 

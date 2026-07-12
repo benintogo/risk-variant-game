@@ -375,14 +375,30 @@ function isCapitalCountry(countryName, playerId = game?.ownership?.[countryName]
 }
 
 function attackDiceLimitFor(fromName, baseLimit) {
-  const owner = game.ownership[fromName];
-  return Math.max(1, Number(baseLimit || 0) + (isCapitalCountry(fromName, owner) ? 1 : 0));
+  return Math.max(1, Number(baseLimit || 0));
+}
+
+function attackKeptDiceMaxFor(fromName, baseLimit) {
+  const troopLimited = Math.min(attackDiceLimitFor(fromName, baseLimit), countryTroops(fromName) - 1);
+  return Math.max(0, troopLimited);
 }
 
 function defenderDiceFor(countryName) {
-  const owner = game.ownership[countryName];
-  const baseLimit = 2 + (isCapitalCountry(countryName, owner) ? 1 : 0);
-  return Math.min(baseLimit, countryTroops(countryName));
+  const troopLimited = Math.min(2, countryTroops(countryName));
+  return Math.max(0, troopLimited);
+}
+
+function rollCapitalAwareDice(countryName, keptDice) {
+  const capital = isCapitalCountry(countryName);
+  const raw = rollDice(Math.max(0, Number(keptDice || 0)) + (capital ? 1 : 0));
+  const kept = capital ? raw.slice(0, Math.max(0, raw.length - 1)) : raw;
+  const dropped = capital ? raw.slice(Math.max(0, raw.length - 1)) : [];
+  return { raw, kept, dropped, capital };
+}
+
+function diceLogText(label, roll) {
+  if (!roll.capital) return `${label} ${roll.kept.join(", ")}`;
+  return `${label} ${roll.kept.join(", ")} (capital raw ${roll.raw.join(", ")}; dropped ${roll.dropped.join(", ")})`;
 }
 
 function isNuclearPower(countryName, ownerId = game?.ownership?.[countryName]) {
@@ -2082,7 +2098,7 @@ function updateAttackDice() {
   const from = $("attackFrom").value;
   const target = $("attackTo").value;
   const option = viableAttackOptionsFor(from).find((item) => item.target === target);
-  const max = option ? Math.min(option.maxDice, countryTroops(from) - 1) : 0;
+  const max = option ? attackKeptDiceMaxFor(from, option.maxDice) : 0;
   setOptions($("attackDice"), Array.from({ length: Math.max(0, max) }, (_, i) => i + 1), String, String);
   if (max > 0) $("attackDice").value = String(max);
   $("conquestMove").min = 1;
@@ -3145,7 +3161,7 @@ function handleAttack(event) {
   const attackDice = Number($("attackDice").value);
   if (!attacker || !from || !target || !attackDice) return;
   const option = viableAttackOptionsFor(from).find((item) => item.target === target);
-  const maxAttackDice = option ? Math.min(option.maxDice, countryTroops(from) - 1) : 0;
+  const maxAttackDice = option ? attackKeptDiceMaxFor(from, option.maxDice) : 0;
   if (!option || attackDice < 1 || attackDice > maxAttackDice) {
     alert("That attack dice choice is not available.");
     return;
@@ -3158,12 +3174,12 @@ function handleAttack(event) {
   const defenderId = game.ownership[target];
   const targetIsNuclear = isNuclearPower(target, defenderId);
   const defenderDice = defenderDiceFor(target);
-  const attackRolls = rollDice(attackDice);
-  const defendRolls = rollDice(defenderDice);
+  const attackRoll = rollCapitalAwareDice(from, attackDice);
+  const defendRoll = rollCapitalAwareDice(target, defenderDice);
   let attackerLoss = 0;
   let defenderLoss = 0;
-  for (let i = 0; i < Math.min(attackRolls.length, defendRolls.length); i += 1) {
-    if (attackRolls[i] > defendRolls[i]) defenderLoss += 1;
+  for (let i = 0; i < Math.min(attackRoll.kept.length, defendRoll.kept.length); i += 1) {
+    if (attackRoll.kept[i] > defendRoll.kept[i]) defenderLoss += 1;
     else attackerLoss += 1;
   }
   game.troops[from] -= attackerLoss;
@@ -3172,17 +3188,22 @@ function handleAttack(event) {
     isCapitalCountry(from, attacker.id) ? `${from} is ${attacker.name}'s capital` : "",
     isCapitalCountry(target, defenderId) ? `${target} is ${playerName(defenderId)}'s capital` : ""
   ].filter(Boolean);
-  addPrivateLog(`${attacker.name} attacks ${target} from ${from}. Attack rolls ${attackRolls.join(", ")}; defense rolls ${defendRolls.join(", ")}. Losses: ${attackerLoss} attacker, ${defenderLoss} defender.${capitalNotes.length ? ` Capital bonus: ${capitalNotes.join("; ")}.` : ""}`, [attacker.id, defenderId]);
+  if (countryTroops(from) <= 0) removeCountryOwner(from);
+  addPrivateLog(`${attacker.name} attacks ${target} from ${from}. ${diceLogText("Attack rolls", attackRoll)}; ${diceLogText("defense rolls", defendRoll)}. Losses: ${attackerLoss} attacker, ${defenderLoss} defender.${capitalNotes.length ? ` Capital bonus: ${capitalNotes.join("; ")}.` : ""}`, [attacker.id, defenderId]);
   let conquered = false;
-  if (countryTroops(target) <= 0) {
+  if (countryTroops(target) <= 0 && game.ownership[from] === attacker.id && countryTroops(from) > 1) {
     const requestedMove = Number($("conquestMove").value || attackDice);
     const move = Math.max(1, Math.min(requestedMove, countryTroops(from) - 1));
     setCountryOwner(target, attacker.id);
     game.troops[target] = move;
     game.troops[from] -= move;
+    if (countryTroops(from) <= 0) removeCountryOwner(from);
     conquered = true;
     addPrivateLog(`${attacker.name} conquers ${target} from ${playerName(defenderId)} and moves ${move} troops in.`, [attacker.id, defenderId]);
     announceNewRegionControls(attacker.id);
+  } else if (countryTroops(target) <= 0) {
+    removeCountryOwner(target);
+    addPrivateLog(`${target} is left without troops after ${attacker.name}'s attack from ${from}.`, [attacker.id, defenderId]);
   }
   if (targetIsNuclear) {
     applyNuclearRetaliation({
@@ -3237,32 +3258,37 @@ function handleLimitedAttack(attacker, from, target, option = null) {
   }
 
   markTurnAction();
-  const attackDice = Math.max(1, Math.min(option?.maxDice || attackDiceLimitFor(from, 1), countryTroops(from) - 1));
+  const attackDice = attackKeptDiceMaxFor(from, option?.maxDice || attackDiceLimitFor(from, 1));
   const defenderDice = defenderDiceFor(target);
-  const attackRolls = rollDice(attackDice);
-  const defendRolls = rollDice(defenderDice);
+  const attackRoll = rollCapitalAwareDice(from, attackDice);
+  const defendRoll = rollCapitalAwareDice(target, defenderDice);
   let attackerLoss = 0;
   let defenderLoss = 0;
-  for (let i = 0; i < Math.min(attackRolls.length, defendRolls.length); i += 1) {
-    if (attackRolls[i] > defendRolls[i]) defenderLoss += 1;
+  for (let i = 0; i < Math.min(attackRoll.kept.length, defendRoll.kept.length); i += 1) {
+    if (attackRoll.kept[i] > defendRoll.kept[i]) defenderLoss += 1;
     else attackerLoss += 1;
   }
   let conquered = false;
   if (attackerLoss > 0) {
     game.troops[from] -= attackerLoss;
+    if (countryTroops(from) <= 0) removeCountryOwner(from);
     addPrivateLog(`${attacker.name} probes ${target} from ${from}. ${attackerLoss} attacking troop${attackerLoss === 1 ? "" : "s"} die${attackerLoss === 1 ? "s" : ""}.`, [attacker.id, defenderId]);
   }
   if (defenderLoss > 0) {
     game.troops[target] -= defenderLoss;
-    if (countryTroops(target) <= 0) {
+    if (countryTroops(target) <= 0 && game.ownership[from] === attacker.id && countryTroops(from) > 1) {
       const requestedMove = Number($("conquestMove").value || 1);
       const move = Math.max(1, Math.min(requestedMove, countryTroops(from) - 1));
       setCountryOwner(target, attacker.id);
       game.troops[target] = move;
       game.troops[from] -= move;
+      if (countryTroops(from) <= 0) removeCountryOwner(from);
       conquered = true;
       addPrivateLog(`${attacker.name} probes ${target} from ${from}, conquers it, and moves ${move} troops in.`, [attacker.id, defenderId]);
       announceNewRegionControls(attacker.id);
+    } else if (countryTroops(target) <= 0) {
+      removeCountryOwner(target);
+      addPrivateLog(`${target} is left without troops after ${attacker.name}'s probe from ${from}.`, [attacker.id, defenderId]);
     } else if (attackerLoss <= 0) {
       addPrivateLog(`${attacker.name} probes ${target} from ${from}. No visible result.`, [attacker.id]);
     }
@@ -3293,7 +3319,7 @@ function updateContextAttackDice(rootId = "mapDetails") {
     const diceSelect = form.querySelector('[name="dice"]');
     const moveInput = form.querySelector('[name="move"]');
     const option = viableAttackOptionsFor(from).find((item) => item.target === target);
-    const max = option ? Math.min(option.maxDice, countryTroops(from) - 1) : 0;
+    const max = option ? attackKeptDiceMaxFor(from, option.maxDice) : 0;
     diceSelect.innerHTML = "";
     for (let value = 1; value <= max; value += 1) {
       const optionNode = document.createElement("option");
