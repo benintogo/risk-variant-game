@@ -1008,18 +1008,6 @@ function calculateRecruits() {
   return totalAwarded;
 }
 
-function addFutureRegionBonusPenalty(playerId, amount, source) {
-  const player = game.players.find((candidate) => candidate.id === playerId);
-  const penalty = Math.max(0, Number(amount || 0));
-  if (!player || penalty <= 0) return;
-  player.nuclearRecruitPenaltyRemaining = Math.max(0, Number(player.nuclearRecruitPenaltyRemaining || 0)) + penalty;
-  const existingSource = player.nuclearRecruitPenaltySource || "";
-  player.nuclearRecruitPenaltySource = existingSource && !existingSource.includes(source)
-    ? `${existingSource}; ${source}`
-    : source || existingSource;
-  addPrivateLog(`${player.name} has ${penalty} unpaid nuclear retaliation loss${penalty === 1 ? "" : "es"} converted into future region bonus withholding.`, [player.id]);
-}
-
 function startNewRound(reason) {
   game.round += 1;
   game.pendingTransfers = [];
@@ -1362,20 +1350,20 @@ function applyNuclearStrike({ sourceName, fromPlayerId, targetPlayerId, automati
   }
 }
 
-function applyNuclearRetaliation({ targetName, actorId, defenderId = null, excludeCountry = null, action = "targets", deferUnpaidRegionPenalty = false }) {
+function applyNuclearRetaliation({ targetName, actorId, defenderId = null, excludeCountry = null, action = "targets" }) {
   const targetCountry = countryByName.get(targetName);
   if (!targetCountry || !isNuclearPower(targetName, defenderId || game.ownership[targetName])) return;
   const actor = game.players.find((player) => player.id === actorId);
   const defender = game.players.find((player) => player.id === defenderId);
   if (!actor) return;
   if (defenderId && defenderId !== actorId && defender) {
-    queueNuclearRetaliationDecision({ targetName, actorId, defenderId, excludeCountry, action, deferUnpaidRegionPenalty });
+    queueNuclearRetaliationDecision({ targetName, actorId, defenderId, excludeCountry, action });
     return;
   }
-  executeNuclearRetaliation({ targetName, actorId, defenderId, excludeCountry, action, deferUnpaidRegionPenalty });
+  executeNuclearRetaliation({ targetName, actorId, defenderId, excludeCountry, action });
 }
 
-function queueNuclearRetaliationDecision({ targetName, actorId, defenderId, excludeCountry = null, action = "targets", deferUnpaidRegionPenalty = false }) {
+function queueNuclearRetaliationDecision({ targetName, actorId, defenderId, excludeCountry = null, action = "targets" }) {
   game.pendingNuclearRetaliations ||= [];
   const duplicate = game.pendingNuclearRetaliations.some((pending) => (
     pending.targetName === targetName
@@ -1398,14 +1386,13 @@ function queueNuclearRetaliationDecision({ targetName, actorId, defenderId, excl
     defenderId,
     excludeCountry,
     action,
-    deferUnpaidRegionPenalty,
     strikeableTargets,
     round: game.round
   });
   addPrivateLog(`${defender?.name || "Defender"} may choose whether to retaliate from nuclear power ${targetName} against ${actor?.name || "the attacker"}.`, [defenderId, actorId]);
 }
 
-function executeNuclearRetaliation({ targetName, actorId, defenderId = null, excludeCountry = null, action = "targets", deferUnpaidRegionPenalty = false }) {
+function executeNuclearRetaliation({ targetName, actorId, defenderId = null, excludeCountry = null, action = "targets" }) {
   const targetCountry = countryByName.get(targetName);
   if (!targetCountry || !isNuclearPower(targetName, defenderId || game.ownership[targetName])) return;
   const actor = game.players.find((player) => player.id === actorId);
@@ -1413,9 +1400,6 @@ function executeNuclearRetaliation({ targetName, actorId, defenderId = null, exc
   const amount = Math.max(0, targetCountry.magnitude || 0);
   const result = applyOrderedTroopLoss(actorId, amount, excludeCountry, targetName);
   addPrivateLog(`${actor.name} ${action} nuclear power ${targetName}; retaliation follows the nuclear loss order and costs ${result.lost}/${amount} troops: ${describeLossResult(result)}.`, [actorId, defenderId]);
-  if (deferUnpaidRegionPenalty && result.remaining > 0) {
-    addFutureRegionBonusPenalty(actorId, result.remaining, `unpaid retaliation from ${targetName}`);
-  }
 
   if (!defenderId || defenderId === actorId) return;
   for (const nuclearCountry of result.nuclearSources) {
@@ -1489,9 +1473,6 @@ function resolvePendingNuclearDecision(id, retaliate) {
   promptedNuclearDecisionIds.delete(id);
   if (retaliate) {
     const result = executeChosenNuclearRetaliation(pending);
-    if (pending.deferUnpaidRegionPenalty && result.remaining > 0 && !result.stoppedEarly) {
-      addFutureRegionBonusPenalty(pending.actorId, result.remaining, `unpaid retaliation from ${pending.targetName}`);
-    }
     for (const nuclearCountry of result.nuclearSources) {
       applyNuclearStrike({
         sourceName: nuclearCountry.name,
@@ -3161,8 +3142,7 @@ function handleAttack(event) {
       actorId: attacker.id,
       defenderId,
       excludeCountry: conquered ? target : null,
-      action: conquered ? "conquers" : "attacks",
-      deferUnpaidRegionPenalty: conquered
+      action: conquered ? "conquers" : "attacks"
     });
   }
   checkEliminations();
@@ -3197,8 +3177,7 @@ function handleLimitedAttack(attacker, from, target) {
           targetName: target,
           actorId: attacker.id,
           excludeCountry: target,
-          action: "claims",
-          deferUnpaidRegionPenalty: true
+          action: "claims"
         });
         checkEliminations();
         refreshRegionControlAnnouncements();
@@ -3238,8 +3217,7 @@ function handleLimitedAttack(attacker, from, target) {
       actorId: attacker.id,
       defenderId,
       excludeCountry: conquered ? target : null,
-      action: conquered ? "conquers" : "attacks",
-      deferUnpaidRegionPenalty: conquered
+      action: conquered ? "conquers" : "attacks"
     });
   }
   checkEliminations();
@@ -3515,8 +3493,7 @@ function bindEvents() {
         targetName: target,
         actorId: player.id,
         excludeCountry: target,
-        action: "claims",
-        deferUnpaidRegionPenalty: true
+        action: "claims"
       });
       checkEliminations();
     }

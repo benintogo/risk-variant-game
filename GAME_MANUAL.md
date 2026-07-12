@@ -84,15 +84,13 @@ Region bonuses are added after base recruits.
 
 ### Nuclear Recruit Penalties
 
-Region bonus recruits can be withheld by nuclear penalties.
+Region bonus recruits can be withheld only by starting nuclear-country penalties.
 
 If a player starts the game on a nuclear country, they receive a penalty equal to that country's magnitude. The first region bonus recruits they would receive are withheld until the penalty is fully paid.
 
 Example: A player starts on a magnitude 9 nuclear country. Across future rounds, the first 9 region bonus recruits they earn are withheld. If they earn 4 region bonus recruits in one round and 6 in a later round, they receive 0 from the first bonus, 1 from the second bonus, and the penalty is then complete.
 
-If a player claims or conquers a nuclear country and nuclear retaliation removes fewer troops than the country's magnitude, the unpaid remainder becomes the same kind of future region bonus penalty.
-
-Example: A player conquers a magnitude 9 nuclear country, but only loses 6 troops to retaliation. The remaining 3 losses are converted into future region bonus withholding.
+If nuclear retaliation removes fewer troops than the nuclear country's magnitude, the unused retaliation amount expires. It does not become a future recruit penalty, whether the retaliating country is owned or unowned, and whether the defending player stops early or simply has no remaining legal targets.
 
 Nuclear recruit penalties only withhold region bonus recruits. They do not reduce magnitude-based recruits.
 
@@ -359,7 +357,7 @@ If a country is reduced to 0 troops by nuclear retaliation, that player loses th
 
 If the full retaliation amount has not yet been paid, losses continue to the next country in the order.
 
-If the retaliation happened because the player claimed or conquered the nuclear country, and the full amount still cannot be paid in troop losses, the unpaid remainder becomes a future region bonus recruit penalty.
+If the full retaliation amount has not been paid and the retaliating player stops or has no legal targets left, the unused retaliation amount expires. It does not become a future region bonus recruit penalty.
 
 ## Nuclear Counter-Retaliation
 
