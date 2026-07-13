@@ -187,7 +187,7 @@ const ANTARCTICA_CONNECTIONS = new Set([
   "United Kingdom", "United States", "Uruguay"
 ]);
 const BIR_TAWIL_NAME = "Bir Tawil";
-const BIR_TAWIL_CONNECTIONS = new Set(["The Sudan", "South Sudan"]);
+const BIR_TAWIL_CONNECTIONS = new Set(["The Sudan", "Egypt"]);
 const SHARED_STAGING_CONFIG = {
   [ANTARCTICA_NAME]: {
     id: "antarctica",

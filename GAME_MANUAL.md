@@ -298,7 +298,7 @@ Argentina, Australia, Brazil, Chile, China, Czechia, France, Germany, India, Ita
 
 Eligible Bir Tawil countries are:
 
-The Sudan and South Sudan.
+The Sudan and Egypt.
 
 If a player loses all owned countries but has troops in a shared staging territory, those troops become available to the player with the most troops in that same shared staging territory.
 
