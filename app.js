@@ -134,6 +134,7 @@ const MAP_MIN_SCALE = 145;
 const PLAYER_MAP_MAX_SCALE = 7200;
 const MODERATOR_MAP_MAX_SCALE = 7200;
 const MAP_ZOOM_STEP = 1.12;
+const MAP_KEYBOARD_PAN_DEGREES = 12;
 
 const NUCLEAR_POWERS = new Set([
   "United States",
@@ -3285,6 +3286,34 @@ function bindMapControls() {
   });
 }
 
+function shouldIgnoreMapKeyboardEvent(event) {
+  const target = event.target;
+  return Boolean(target && target.closest?.("input, textarea, select, button, [contenteditable='true']"));
+}
+
+function panVisiblePlayerMap(direction) {
+  if (!game || game.phase === "gameover") return false;
+  const planningOpen = !$("planningTab").classList.contains("hidden");
+  const turnOpen = !$("turnTab").classList.contains("hidden");
+  if (!planningOpen && !turnOpen) return false;
+  globeView.lon = ((((globeView.lon + direction * MAP_KEYBOARD_PAN_DEGREES) + 180) % 360) + 360) % 360 - 180;
+  if (planningOpen) {
+    renderPlanningVisible();
+  } else {
+    renderVisible();
+  }
+  return true;
+}
+
+function bindMapKeyboardControls() {
+  document.addEventListener("keydown", (event) => {
+    if (shouldIgnoreMapKeyboardEvent(event)) return;
+    if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") return;
+    const direction = event.key === "ArrowLeft" ? -1 : 1;
+    if (panVisiblePlayerMap(direction)) event.preventDefault();
+  });
+}
+
 function bindModeratorMapControls() {
   const svg = $("moderatorMap");
   svg.addEventListener("click", (event) => {
@@ -3729,6 +3758,7 @@ function bindEvents() {
   });
   $("closeManualButton").addEventListener("click", () => $("manualTab").classList.add("hidden"));
   bindMapControls();
+  bindMapKeyboardControls();
   bindModeratorMapControls();
   $("boardSearch").addEventListener("input", renderBoard);
   ["filterCountry", "filterRegion", "filterNetwork", "filterMagnitude", "filterOwner", "filterTroops"].forEach((id) => {
