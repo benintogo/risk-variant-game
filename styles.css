@@ -532,9 +532,12 @@ form.map-action-panel {
 }
 
 .manual-content {
-  display: grid;
-  gap: 10px;
+  margin: 0;
+  white-space: pre-wrap;
+  word-break: break-word;
   line-height: 1.45;
+  font-family: inherit;
+  font-size: 14px;
 }
 
 .manual-content h3 {

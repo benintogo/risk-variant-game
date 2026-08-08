@@ -128,6 +128,7 @@ let sessionRole = localStorage.getItem(SESSION_ROLE_KEY) || "player";
 let sessionPlayerId = localStorage.getItem(SESSION_PLAYER_KEY) || "";
 let lastRenderedTurnPlayerId = "";
 let promptedNuclearDecisionIds = new Set();
+let manualLoadPromise = null;
 
 const MAP_MIN_SCALE = 145;
 const PLAYER_MAP_MAX_SCALE = 7200;
@@ -2993,6 +2994,23 @@ function renderLog() {
     .join("");
 }
 
+async function loadManualContent() {
+  const target = $("manualContent");
+  if (!target || target.dataset.loaded === "true") return;
+  if (!manualLoadPromise) {
+    manualLoadPromise = fetch("GAME_MANUAL.md").then((response) => {
+      if (!response.ok) throw new Error("Manual could not be loaded.");
+      return response.text();
+    });
+  }
+  try {
+    target.textContent = await manualLoadPromise;
+    target.dataset.loaded = "true";
+  } catch {
+    target.textContent = "The full manual is available in GAME_MANUAL.md.";
+  }
+}
+
 function canOpenTab(name) {
   if (!game) return false;
   if (name === "moderator") return false;
@@ -3590,7 +3608,10 @@ function bindEvents() {
     $("logTab").classList.remove("hidden");
   });
   $("closeLogButton").addEventListener("click", () => $("logTab").classList.add("hidden"));
-  $("openManualButton").addEventListener("click", () => $("manualTab").classList.remove("hidden"));
+  $("openManualButton").addEventListener("click", () => {
+    loadManualContent();
+    $("manualTab").classList.remove("hidden");
+  });
   $("closeManualButton").addEventListener("click", () => $("manualTab").classList.add("hidden"));
   bindMapControls();
   bindModeratorMapControls();
