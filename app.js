@@ -165,14 +165,9 @@ const MAP_LABEL_POINTS = {
   France: [2.2, 46.4],
   Netherlands: [5.3, 52.2],
   Portugal: [-8.1, 39.6],
-  Russia: [96, 61],
-  "Russian Federation": [96, 61],
+  Russia: [37.6, 55.8],
+  "Russian Federation": [37.6, 55.8],
   "Saint Helena": [-5.72, -15.95]
-};
-
-const MAP_CAPABILITY_POINTS = {
-  Russia: [[37.6, 55.8], [96, 61]],
-  "Russian Federation": [[37.6, 55.8], [96, 61]]
 };
 
 const PLAYER_COLORS = [
@@ -2523,19 +2518,6 @@ function labelCandidatePointsForFeature(feature, view = globeView) {
   return candidates.filter((point) => point.visibility > 0.25);
 }
 
-function capabilityCandidatePointsForFeature(feature, view = globeView) {
-  const overrides = MAP_CAPABILITY_POINTS[feature.riskName] || MAP_CAPABILITY_POINTS[feature.name];
-  if (overrides) {
-    return overrides
-      .map((point, index) => {
-        const projected = projectPointForView(point, view);
-        return projected ? { ...projected, priority: index } : null;
-      })
-      .filter((point) => point && point.visibility > 0.25);
-  }
-  return labelCandidatePointsForFeature(feature, view);
-}
-
 function labelPointForFeature(feature, view = globeView) {
   return labelCandidatePointsForFeature(feature, view)[0] || null;
 }
@@ -2831,16 +2813,15 @@ function appendMissileSymbol(parent) {
 }
 
 function appendCapabilityMarker(svg, entry) {
-  const point = entry.candidates
-    .slice()
-    .sort((a, b) => a.priority - b.priority || b.visibility - a.visibility)[0];
-  if (!point) return;
+  const point = entry.point;
+  if (!point || !entry.markers?.length) return;
   const spacing = 20;
   const startX = -((entry.markers.length - 1) * spacing) / 2;
+  const yOffset = Math.max(16, entry.lines.length * 13 + 8);
   const group = appendSvgElement(svg, "g", {
     class: "capability-marker",
     "data-country": entry.country.name,
-    transform: `translate(${point.x.toFixed(2)} ${point.y.toFixed(2)})`
+    transform: `translate(${point.x.toFixed(2)} ${(point.y + yOffset).toFixed(2)})`
   });
   entry.markers.forEach((marker, index) => {
     const icon = appendSvgElement(group, "g", {
@@ -2930,7 +2911,6 @@ function renderPlayerMapFor(player, { svgId, detailsId, unmappedId, labelId }) {
   const mapped = new Set();
   const shaped = new Set(mapFeatures.filter((feature) => feature.riskName && visible.has(feature.riskName)).map((feature) => feature.riskName));
   const labels = new Map();
-  const capabilityMarkers = new Map();
   const svg = $(svgId);
   applyMapView();
   svg.innerHTML = "";
@@ -2960,31 +2940,19 @@ function renderPlayerMapFor(player, { svgId, detailsId, unmappedId, labelId }) {
     svg.appendChild(path);
     const candidates = labelCandidatePointsForFeature(feature);
     const markers = visibleCapabilityMarkers(country, visibility, playerId);
-    if (markers.length) {
-      const markerCandidates = capabilityCandidatePointsForFeature(feature);
-      if (markerCandidates.length) {
-        const existingMarker = capabilityMarkers.get(country.name);
-        if (existingMarker) {
-          existingMarker.candidates.push(...markerCandidates);
-        } else {
-          capabilityMarkers.set(country.name, { country, markers, candidates: [...markerCandidates] });
-        }
-      }
-    }
     if (candidates.length) {
       const existing = labels.get(country.name);
       if (existing) {
         existing.candidates.push(...candidates);
+        if (markers.length) existing.markers = markers;
       } else {
         const ownerId = visibility === "Same region" ? null : game.ownership[country.name];
-        labels.set(country.name, { country, visibility, ownerId, lines: visibleLabelLines(country, visibility, playerId), candidates });
+        labels.set(country.name, { country, visibility, ownerId, markers, lines: visibleLabelLines(country, visibility, playerId), candidates });
       }
     }
   }
-  for (const entry of capabilityMarkers.values()) {
-    appendCapabilityMarker(svg, entry);
-  }
   for (const entry of chooseMapLabels([...labels.values()])) {
+    appendCapabilityMarker(svg, entry);
     appendMapLabel(svg, entry, (countryName) => selectVisibleMapCountry(countryName, visible, playerId, svgId, detailsId));
   }
 
