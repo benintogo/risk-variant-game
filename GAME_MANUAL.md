@@ -90,8 +90,6 @@ If a player starts the game on a nuclear country, they receive a penalty equal t
 
 Example: A player starts on a magnitude 9 nuclear country. Across future rounds, the first 9 region bonus recruits they earn are withheld. If they earn 4 region bonus recruits in one round and 6 in a later round, they receive 0 from the first bonus, 1 from the second bonus, and the penalty is then complete.
 
-If nuclear retaliation removes fewer troops than the nuclear country's magnitude, the unused retaliation amount expires. It does not become a future recruit penalty, whether the retaliating country is owned or unowned, and whether the defending player stops early or simply has no remaining legal targets.
-
 Nuclear recruit penalties only withhold region bonus recruits. They do not reduce magnitude-based recruits.
 
 ## Region Bonuses
@@ -171,7 +169,19 @@ For partially visible countries, players see only the country name and region.
 
 Countries that are not owned, bordering, network-connected, shared-staging-visible, or in the same region are hidden from that player.
 
-The entire world map becomes visible to a player if they own United States, China, Russia, India, or Japan. The entire world map also becomes visible if they own Germany, Italy, and Czechia at the same time.
+The entire world map becomes visible to a player if they own one of these satellite countries:
+
+- United States
+- China
+- Russia
+- India
+- Japan
+
+The entire world map also becomes visible if they own all of these countries at the same time:
+
+- Germany
+- Italy
+- Czechia
 
 Country labels use slightly different font styles by region. These styles are only applied to countries already visible to the player and do not reveal hidden countries.
 
@@ -294,7 +304,27 @@ A player may transfer troops to or from a shared staging territory if they own a
 
 Eligible Antarctica countries are:
 
-Argentina, Australia, Brazil, Chile, China, Czechia, France, Germany, India, Italy, Japan, New Zealand, Norway, Poland, Russia, South Africa, South Korea, Ukraine, United Kingdom, United States, and Uruguay.
+- Argentina
+- Australia
+- Brazil
+- Chile
+- China
+- Czechia
+- France
+- Germany
+- India
+- Italy
+- Japan
+- New Zealand
+- Norway
+- Poland
+- Russia
+- South Africa
+- South Korea
+- Ukraine
+- United Kingdom
+- United States
+- Uruguay
 
 Eligible Bir Tawil countries are:
 
@@ -351,7 +381,18 @@ For most nuclear countries, retaliation targets are limited to opponent countrie
 - Countries sharing a maritime border.
 - Countries in the same region.
 
-United States, Russia, China, United Kingdom, France, India, Israel, and North Korea are strategic nuclear retaliators. If one of those countries retaliates while owned by a player, it may target any opponent country visible to that player. If an unowned strategic nuclear country retaliates, it is treated as its own one-country player for visibility.
+These ICBM nuclear countries are strategic nuclear retaliators:
+
+- United States
+- Russia
+- China
+- United Kingdom
+- France
+- India
+- Israel
+- North Korea
+
+If one of those countries retaliates while owned by a player, it may target any opponent country visible to that player. If an unowned strategic nuclear country retaliates, it is treated as its own one-country player for visibility.
 
 For automatic unowned nuclear retaliation, legal targets are chosen in this order:
 
@@ -366,8 +407,6 @@ For automatic unowned nuclear retaliation, legal targets are chosen in this orde
 If a country is reduced to 0 troops by nuclear retaliation, that player loses the country.
 
 If the full retaliation amount has not yet been paid, losses continue to the next country in the order.
-
-If the full retaliation amount has not been paid and the retaliating player stops or has no legal targets left, the unused retaliation amount expires. It does not become a future region bonus recruit penalty.
 
 ## Nuclear Counter-Retaliation
 
