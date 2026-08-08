@@ -449,6 +449,41 @@ function isNuclearPower(countryName, ownerId = game?.ownership?.[countryName]) {
   return Boolean(requiredCountry && ownerId && game.ownership[requiredCountry] === ownerId);
 }
 
+function visibleNuclearMarkerFor(countryName, playerId, visibility) {
+  if (!countryName || !visibility || isSharedStaging(countryName)) return false;
+  if (NUCLEAR_POWERS.has(countryName)) return true;
+  const requiredCountry = CONDITIONAL_NUCLEAR_POWERS[countryName];
+  if (!requiredCountry) return false;
+  const ownerId = game.ownership[countryName];
+  if (!ownerId) return game.ownership[requiredCountry] === playerId;
+  if (ownerId === playerId) return game.ownership[requiredCountry] === playerId;
+  return visibility !== "Same region"
+    && hasCompleteInfoAbout(playerId, requiredCountry)
+    && game.ownership[requiredCountry] === ownerId;
+}
+
+function visibleSatelliteMarkerFor(countryName, playerId, visibility) {
+  if (!countryName || !visibility || visibility === "Same region" || isSharedStaging(countryName)) return false;
+  if (GLOBAL_VISIBILITY_COUNTRIES.has(countryName)) return true;
+  if (!GLOBAL_VISIBILITY_COMBO.includes(countryName)) return false;
+  const ownerId = game.ownership[countryName];
+  if (!ownerId) return false;
+  if (ownerId === playerId) return GLOBAL_VISIBILITY_COMBO.every((name) => game.ownership[name] === playerId);
+  return GLOBAL_VISIBILITY_COMBO.every((name) => hasCompleteInfoAbout(playerId, name) && game.ownership[name] === ownerId);
+}
+
+function visibleIcbmMarkerFor(countryName, visibility) {
+  return Boolean(countryName && visibility && visibility !== "Same region" && STRATEGIC_NUCLEAR_RETALIATORS.has(countryName));
+}
+
+function visibleCapabilityMarkers(country, visibility, playerId) {
+  const markers = [];
+  if (visibleNuclearMarkerFor(country.name, playerId, visibility)) markers.push("nuclear");
+  if (visibleSatelliteMarkerFor(country.name, playerId, visibility)) markers.push("satellite");
+  if (visibleIcbmMarkerFor(country.name, visibility)) markers.push("missile");
+  return markers;
+}
+
 function isSharedStaging(name) {
   return Boolean(SHARED_STAGING_CONFIG[name]);
 }
@@ -2722,6 +2757,85 @@ function appendMapLabel(svg, entry, onSelect) {
   svg.appendChild(text);
 }
 
+function appendSvgElement(parent, tag, attrs = {}) {
+  const element = document.createElementNS("http://www.w3.org/2000/svg", tag);
+  for (const [key, value] of Object.entries(attrs)) {
+    element.setAttribute(key, String(value));
+  }
+  parent.appendChild(element);
+  return element;
+}
+
+function wedgePath(innerRadius, outerRadius, startDeg, endDeg) {
+  const point = (radius, deg) => {
+    const radians = (deg - 90) * Math.PI / 180;
+    return [Math.cos(radians) * radius, Math.sin(radians) * radius];
+  };
+  const [outerStartX, outerStartY] = point(outerRadius, startDeg);
+  const [outerEndX, outerEndY] = point(outerRadius, endDeg);
+  const [innerEndX, innerEndY] = point(innerRadius, endDeg);
+  const [innerStartX, innerStartY] = point(innerRadius, startDeg);
+  return [
+    `M ${outerStartX.toFixed(2)} ${outerStartY.toFixed(2)}`,
+    `A ${outerRadius} ${outerRadius} 0 0 1 ${outerEndX.toFixed(2)} ${outerEndY.toFixed(2)}`,
+    `L ${innerEndX.toFixed(2)} ${innerEndY.toFixed(2)}`,
+    `A ${innerRadius} ${innerRadius} 0 0 0 ${innerStartX.toFixed(2)} ${innerStartY.toFixed(2)}`,
+    "Z"
+  ].join(" ");
+}
+
+function appendNuclearSymbol(parent) {
+  appendSvgElement(parent, "circle", { cx: 0, cy: 0, r: 2.1 });
+  for (const rotation of [0, 120, 240]) {
+    appendSvgElement(parent, "path", {
+      d: wedgePath(4.2, 11, -24 + rotation, 24 + rotation)
+    });
+  }
+}
+
+function appendSatelliteSymbol(parent) {
+  const tilted = appendSvgElement(parent, "g", { transform: "rotate(-45)" });
+  appendSvgElement(tilted, "rect", { x: -3.7, y: -7.5, width: 7.4, height: 15, rx: 2.6 });
+  appendSvgElement(tilted, "rect", { x: -15, y: -12, width: 7.6, height: 5.4, rx: 0.5 });
+  appendSvgElement(tilted, "rect", { x: -15, y: -4.7, width: 7.6, height: 5.4, rx: 0.5 });
+  appendSvgElement(tilted, "rect", { x: 7.4, y: 6.6, width: 7.6, height: 5.4, rx: 0.5 });
+  appendSvgElement(tilted, "rect", { x: 7.4, y: -0.7, width: 7.6, height: 5.4, rx: 0.5 });
+  appendSvgElement(tilted, "path", { d: "M -5.5 8.2 L -12 16.2 L -1.8 18.6 Z" });
+  appendSvgElement(parent, "path", { d: "M -15 8 C -22 13 -25 20 -24 28", class: "capability-marker-line" });
+  appendSvgElement(parent, "path", { d: "M -9 12 C -14 16 -16 21 -15 26", class: "capability-marker-line" });
+}
+
+function appendMissileSymbol(parent) {
+  const angled = appendSvgElement(parent, "g", { transform: "rotate(45)" });
+  appendSvgElement(angled, "path", { d: "M -3 -13 Q 0 -18 3 -13 L 3 9 Q 0 12 -3 9 Z" });
+  appendSvgElement(angled, "path", { d: "M -3 3 L -8 11 L -3 9 Z" });
+  appendSvgElement(angled, "path", { d: "M 3 3 L 8 11 L 3 9 Z" });
+  appendSvgElement(angled, "path", { d: "M -2 9 L 0 17 L 2 9 Z" });
+}
+
+function appendCapabilityMarker(svg, entry) {
+  const point = entry.candidates
+    .slice()
+    .sort((a, b) => a.priority - b.priority || b.visibility - a.visibility)[0];
+  if (!point) return;
+  const spacing = 20;
+  const startX = -((entry.markers.length - 1) * spacing) / 2;
+  const group = appendSvgElement(svg, "g", {
+    class: "capability-marker",
+    "data-country": entry.country.name,
+    transform: `translate(${point.x.toFixed(2)} ${point.y.toFixed(2)})`
+  });
+  entry.markers.forEach((marker, index) => {
+    const icon = appendSvgElement(group, "g", {
+      class: `capability-marker-icon capability-marker-${marker}`,
+      transform: `translate(${(startX + index * spacing).toFixed(2)} 0) scale(0.72)`
+    });
+    if (marker === "nuclear") appendNuclearSymbol(icon);
+    if (marker === "satellite") appendSatelliteSymbol(icon);
+    if (marker === "missile") appendMissileSymbol(icon);
+  });
+}
+
 function moderatorDetailHtml(country) {
   if (isSharedStaging(country.name)) {
     const config = sharedStagingConfig(country.name);
@@ -2799,6 +2913,7 @@ function renderPlayerMapFor(player, { svgId, detailsId, unmappedId, labelId }) {
   const mapped = new Set();
   const shaped = new Set(mapFeatures.filter((feature) => feature.riskName && visible.has(feature.riskName)).map((feature) => feature.riskName));
   const labels = new Map();
+  const capabilityMarkers = new Map();
   const svg = $(svgId);
   applyMapView();
   svg.innerHTML = "";
@@ -2828,6 +2943,15 @@ function renderPlayerMapFor(player, { svgId, detailsId, unmappedId, labelId }) {
     svg.appendChild(path);
     const candidates = labelCandidatePointsForFeature(feature);
     if (candidates.length) {
+      const markers = visibleCapabilityMarkers(country, visibility, playerId);
+      if (markers.length) {
+        const existingMarker = capabilityMarkers.get(country.name);
+        if (existingMarker) {
+          existingMarker.candidates.push(...candidates);
+        } else {
+          capabilityMarkers.set(country.name, { country, markers, candidates: [...candidates] });
+        }
+      }
       const existing = labels.get(country.name);
       if (existing) {
         existing.candidates.push(...candidates);
@@ -2836,6 +2960,9 @@ function renderPlayerMapFor(player, { svgId, detailsId, unmappedId, labelId }) {
         labels.set(country.name, { country, visibility, ownerId, lines: visibleLabelLines(country, visibility, playerId), candidates });
       }
     }
+  }
+  for (const entry of capabilityMarkers.values()) {
+    appendCapabilityMarker(svg, entry);
   }
   for (const entry of chooseMapLabels([...labels.values()])) {
     appendMapLabel(svg, entry, (countryName) => selectVisibleMapCountry(countryName, visible, playerId, svgId, detailsId));
