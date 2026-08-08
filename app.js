@@ -3113,16 +3113,16 @@ async function loadManualContent() {
   const target = $("manualContent");
   if (!target || target.dataset.loaded === "true") return;
   if (!manualLoadPromise) {
-    manualLoadPromise = fetch("GAME_MANUAL.md").then((response) => {
+    manualLoadPromise = fetch("PLAYER_MANUAL.html").then((response) => {
       if (!response.ok) throw new Error("Manual could not be loaded.");
       return response.text();
     });
   }
   try {
-    target.textContent = await manualLoadPromise;
+    target.innerHTML = await manualLoadPromise;
     target.dataset.loaded = "true";
   } catch {
-    target.textContent = "The full manual is available in GAME_MANUAL.md.";
+    target.textContent = "The player guide could not be loaded.";
   }
 }
 

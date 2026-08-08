@@ -1,0 +1,96 @@
+<article class="player-manual">
+  <h3>Player Guide</h3>
+  <p>Your goal is to be the last active player with troops in owned countries. The board is hidden-information: your map only shows what your player is allowed to know.</p>
+
+  <h4>Starting the Game</h4>
+  <ul>
+    <li>Each player starts with 1 random country and 10 troops.</li>
+    <li>Turn order follows the player order in a snake pattern. The players at both ends of the snake take two turns when the order reverses.</li>
+    <li>The first round skips recruit placement because nobody has earned recruits yet.</li>
+  </ul>
+
+  <h4>Round Flow</h4>
+  <ol>
+    <li>If players have recruits, everyone submits a recruit plan independently.</li>
+    <li>When all required recruit plans are submitted, all recruits are placed at the same time.</li>
+    <li>Turns continue in snake order. A round ending never resets the turn order.</li>
+    <li>After each turn, the game may start a new round. The chance is 1 divided by the number of active players.</li>
+  </ol>
+
+  <h4>Recruits</h4>
+  <p>Your base recruits come from the total magnitude of your owned countries:</p>
+  <p><strong>floor((owned magnitude total / 25) + carried fraction)</strong></p>
+  <p>Leftover fractions carry into your next round. Region bonuses are added if you control every country in a region.</p>
+  <p>If you started on a nuclear country, your first region bonus recruits are withheld until the penalty equal to that country's magnitude has been paid.</p>
+
+  <h4>What You Can See</h4>
+  <ul>
+    <li>You fully see your own countries.</li>
+    <li>You fully see countries that border your countries by land or maritime border.</li>
+    <li>You fully see countries connected by network to your countries.</li>
+    <li>You partially see other countries in the same region as one of your countries.</li>
+    <li>Partially visible countries show only their name and region.</li>
+  </ul>
+
+  <h4>Map Symbols</h4>
+  <ul>
+    <li><strong>Nuclear symbol:</strong> shown only when you have full information for that country and can know that it is nuclear.</li>
+    <li><strong>Satellite symbol:</strong> shown only when you have full information for a country that grants whole-map visibility.</li>
+    <li><strong>Missile symbol:</strong> shown only when you have full information for an ICBM nuclear country.</li>
+  </ul>
+  <p>Conditional nuclear or satellite status never reveals hidden ownership. For example, Germany only shows nuclear or satellite status when your visible information is enough to know the condition is active.</p>
+
+  <h4>Whole-Map Visibility</h4>
+  <p>You can see the entire world if you own any one of these satellite countries:</p>
+  <ul>
+    <li>United States</li>
+    <li>China</li>
+    <li>Russia</li>
+    <li>India</li>
+    <li>Japan</li>
+  </ul>
+  <p>You also get whole-map visibility if you own Germany, Italy, and Czechia at the same time.</p>
+
+  <h4>Your Turn</h4>
+  <p>On your turn, click one of your countries on the map to see available actions. You may attack, claim unowned countries, and transfer troops as long as each action is legal.</p>
+  <ul>
+    <li>At least 1 troop must remain behind in the origin country.</li>
+    <li>Land attacks may use up to 3 attack dice.</li>
+    <li>Maritime attacks may use up to 2 attack dice.</li>
+    <li>Regional attacks without a border may use only 1 attack die and may reveal limited information.</li>
+  </ul>
+
+  <h4>Claiming Unowned Countries</h4>
+  <p>You may claim an unowned country that borders one of your countries. You must move at least the target's magnitude into it, with a minimum of 1 troop even for magnitude 0 countries.</p>
+
+  <h4>Capital Countries</h4>
+  <p>Your capital is the country you have held the longest among the countries you currently own. If you lose it, your next longest-held country becomes your capital.</p>
+  <ul>
+    <li>A capital does not make an otherwise illegal attack legal. A country with only 1 troop still cannot attack.</li>
+    <li>If a capital attacks or defends, it rolls 1 extra die.</li>
+    <li>After rolling, the capital removes its lowest die before dice are compared.</li>
+    <li>This gives the capital a better set of dice, but it does not increase the maximum number of troops that can be lost in that battle.</li>
+  </ul>
+
+  <h4>Dice Results</h4>
+  <p>Dice are sorted from highest to lowest and compared in order. If the attack die is higher, the defender loses 1 troop. If dice tie or the defense die is higher, the attacker loses 1 troop. Ties go to the defender.</p>
+
+  <h4>Nuclear Countries</h4>
+  <p>Always nuclear: United States, China, North Korea, Pakistan, India, Israel, United Kingdom, France, and Russia.</p>
+  <p>Conditionally nuclear: Belarus with Russia; Germany, Turkey, Italy, Belgium, and Netherlands with United States.</p>
+  <p>If a nuclear country is attacked, claimed, or conquered, nuclear retaliation may remove troops equal to that country's magnitude. If the nuclear country is owned by another player, that player chooses whether to retaliate and chooses target countries one at a time. Unowned nuclear countries retaliate automatically once.</p>
+
+  <h4>ICBM Countries</h4>
+  <p>These nuclear countries can retaliate against any opponent country visible to the retaliating player: United States, Russia, China, United Kingdom, France, India, Israel, and North Korea.</p>
+
+  <h4>Shared Staging Territories</h4>
+  <p>Antarctica and Bir Tawil cannot be owned or attacked, but multiple players can station troops there.</p>
+  <ul>
+    <li>Antarctica is accessible if you own Argentina, Australia, Brazil, Chile, China, Czechia, France, Germany, India, Italy, Japan, New Zealand, Norway, Poland, Russia, South Africa, South Korea, Ukraine, United Kingdom, United States, or Uruguay.</li>
+    <li>Bir Tawil is accessible if you own The Sudan or Egypt.</li>
+  </ul>
+
+  <h4>Forfeiting and Elimination</h4>
+  <p>You are eliminated if you have no owned countries or no troops in owned countries. Troops in Antarctica or Bir Tawil do not keep you active.</p>
+  <p>If you forfeit, your countries become unowned and your non-staging troops are removed. Troops in shared staging territories remain there.</p>
+</article>
