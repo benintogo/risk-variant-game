@@ -170,6 +170,11 @@ const MAP_LABEL_POINTS = {
   "Saint Helena": [-5.72, -15.95]
 };
 
+const MAP_CAPABILITY_POINTS = {
+  Russia: [[37.6, 55.8], [96, 61]],
+  "Russian Federation": [[37.6, 55.8], [96, 61]]
+};
+
 const PLAYER_COLORS = [
   "#d6a23f",
   "#df6b57",
@@ -450,15 +455,14 @@ function isNuclearPower(countryName, ownerId = game?.ownership?.[countryName]) {
 }
 
 function visibleNuclearMarkerFor(countryName, playerId, visibility) {
-  if (!countryName || !visibility || isSharedStaging(countryName)) return false;
+  if (!countryName || !visibility || visibility === "Same region" || isSharedStaging(countryName)) return false;
   if (NUCLEAR_POWERS.has(countryName)) return true;
   const requiredCountry = CONDITIONAL_NUCLEAR_POWERS[countryName];
   if (!requiredCountry) return false;
   const ownerId = game.ownership[countryName];
-  if (!ownerId) return game.ownership[requiredCountry] === playerId;
+  if (!ownerId) return false;
   if (ownerId === playerId) return game.ownership[requiredCountry] === playerId;
-  return visibility !== "Same region"
-    && hasCompleteInfoAbout(playerId, requiredCountry)
+  return hasCompleteInfoAbout(playerId, requiredCountry)
     && game.ownership[requiredCountry] === ownerId;
 }
 
@@ -2519,6 +2523,19 @@ function labelCandidatePointsForFeature(feature, view = globeView) {
   return candidates.filter((point) => point.visibility > 0.25);
 }
 
+function capabilityCandidatePointsForFeature(feature, view = globeView) {
+  const overrides = MAP_CAPABILITY_POINTS[feature.riskName] || MAP_CAPABILITY_POINTS[feature.name];
+  if (overrides) {
+    return overrides
+      .map((point, index) => {
+        const projected = projectPointForView(point, view);
+        return projected ? { ...projected, priority: index } : null;
+      })
+      .filter((point) => point && point.visibility > 0.25);
+  }
+  return labelCandidatePointsForFeature(feature, view);
+}
+
 function labelPointForFeature(feature, view = globeView) {
   return labelCandidatePointsForFeature(feature, view)[0] || null;
 }
@@ -2942,16 +2959,19 @@ function renderPlayerMapFor(player, { svgId, detailsId, unmappedId, labelId }) {
     });
     svg.appendChild(path);
     const candidates = labelCandidatePointsForFeature(feature);
-    if (candidates.length) {
-      const markers = visibleCapabilityMarkers(country, visibility, playerId);
-      if (markers.length) {
+    const markers = visibleCapabilityMarkers(country, visibility, playerId);
+    if (markers.length) {
+      const markerCandidates = capabilityCandidatePointsForFeature(feature);
+      if (markerCandidates.length) {
         const existingMarker = capabilityMarkers.get(country.name);
         if (existingMarker) {
-          existingMarker.candidates.push(...candidates);
+          existingMarker.candidates.push(...markerCandidates);
         } else {
-          capabilityMarkers.set(country.name, { country, markers, candidates: [...candidates] });
+          capabilityMarkers.set(country.name, { country, markers, candidates: [...markerCandidates] });
         }
       }
+    }
+    if (candidates.length) {
       const existing = labels.get(country.name);
       if (existing) {
         existing.candidates.push(...candidates);
