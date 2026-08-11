@@ -466,9 +466,15 @@ function visibleSatelliteMarkerFor(countryName, playerId, visibility) {
   if (!countryName || !visibility || visibility === "Same region" || isSharedStaging(countryName)) return false;
   if (GLOBAL_VISIBILITY_COUNTRIES.has(countryName)) return true;
   if (!GLOBAL_VISIBILITY_COMBO.includes(countryName)) return false;
+  const ownership = GLOBAL_VISIBILITY_COMBO.map((name) => ({ name, ownerId: game.ownership[name] || null }));
+  const viewerOwned = ownership.filter((item) => item.ownerId === playerId);
+  const unowned = ownership.filter((item) => !item.ownerId);
+  if (viewerOwned.length === GLOBAL_VISIBILITY_COMBO.length) return true;
+  if (viewerOwned.length === GLOBAL_VISIBILITY_COMBO.length - 1 && unowned.length === 1) {
+    return countryName === unowned[0].name;
+  }
   const ownerId = game.ownership[countryName];
-  if (!ownerId) return false;
-  if (ownerId === playerId) return GLOBAL_VISIBILITY_COMBO.every((name) => game.ownership[name] === playerId);
+  if (!ownerId || ownerId === playerId) return false;
   return GLOBAL_VISIBILITY_COMBO.every((name) => hasCompleteInfoAbout(playerId, name) && game.ownership[name] === ownerId);
 }
 
