@@ -2800,15 +2800,14 @@ function appendNuclearSymbol(parent) {
 }
 
 function appendSatelliteSymbol(parent) {
-  const tilted = appendSvgElement(parent, "g", { transform: "rotate(-45)" });
-  appendSvgElement(tilted, "rect", { x: -3.7, y: -7.5, width: 7.4, height: 15, rx: 2.6 });
-  appendSvgElement(tilted, "rect", { x: -15, y: -12, width: 7.6, height: 5.4, rx: 0.5 });
-  appendSvgElement(tilted, "rect", { x: -15, y: -4.7, width: 7.6, height: 5.4, rx: 0.5 });
-  appendSvgElement(tilted, "rect", { x: 7.4, y: 6.6, width: 7.6, height: 5.4, rx: 0.5 });
-  appendSvgElement(tilted, "rect", { x: 7.4, y: -0.7, width: 7.6, height: 5.4, rx: 0.5 });
-  appendSvgElement(tilted, "path", { d: "M -5.5 8.2 L -12 16.2 L -1.8 18.6 Z" });
-  appendSvgElement(parent, "path", { d: "M -15 8 C -22 13 -25 20 -24 28", class: "capability-marker-line" });
-  appendSvgElement(parent, "path", { d: "M -9 12 C -14 16 -16 21 -15 26", class: "capability-marker-line" });
+  appendSvgElement(parent, "image", {
+    href: "assets/satellite-symbol.png",
+    x: -15.8,
+    y: -16.5,
+    width: 31.6,
+    height: 33.1,
+    preserveAspectRatio: "xMidYMid meet"
+  });
 }
 
 function appendMissileSymbol(parent) {
