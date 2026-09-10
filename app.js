@@ -588,6 +588,17 @@ function canSeeLogEntry(entry) {
   return entry.visibleTo.includes(sessionPlayerId);
 }
 
+function canPlayerSeeLogEntry(entry, playerId) {
+  if (typeof entry === "string") return true;
+  if (!entry.visibleTo) return true;
+  return entry.visibleTo.includes(playerId);
+}
+
+function latestVisibleLogEntryFor(playerId) {
+  if (!playerId) return null;
+  return (game.log || []).slice().reverse().find((entry) => canPlayerSeeLogEntry(entry, playerId)) || null;
+}
+
 function shuffled(items) {
   const copy = [...items];
   for (let i = copy.length - 1; i > 0; i -= 1) {
@@ -677,6 +688,11 @@ function normalizeLoadedGame() {
   game.recruitPlans ||= {};
   game.pendingTransfers ||= [];
   game.pendingNuclearRetaliations ||= [];
+  for (const pending of game.pendingNuclearRetaliations) {
+    pending.remaining = Number(pending.remaining ?? countryByName.get(pending.targetName)?.magnitude ?? 0);
+    pending.losses ||= [];
+    pending.nuclearSources ||= [];
+  }
   game.antarcticaTroops ||= {};
   game.antarcticaUnclaimed ||= 0;
   game.birTawilTroops ||= {};
@@ -1233,7 +1249,7 @@ function isPlayerSession() {
 
 function playerSessionCanAct() {
   if (!isPlayerSession()) return true;
-  return game?.phase === "turn" && currentPlayer()?.id === sessionPlayerId;
+  return game?.phase === "turn" && !pendingNuclearDecision() && currentPlayer()?.id === sessionPlayerId;
 }
 
 function setSession(role, playerId = "") {
@@ -1559,6 +1575,9 @@ function queueNuclearRetaliationDecision({ targetName, actorId, defenderId, excl
     excludeCountry,
     action,
     strikeableTargets: targetNames,
+    remaining: Math.max(0, countryByName.get(targetName)?.magnitude || 0),
+    losses: [],
+    nuclearSources: [],
     round: game.round
   });
   addPrivateLog(`${defender?.name || "Defender"} may choose whether to retaliate from nuclear power ${targetName} against ${actor?.name || "the attacker"}.`, [defenderId, actorId]);
@@ -1592,6 +1611,10 @@ function pendingNuclearDecisionForSession() {
   return (game.pendingNuclearRetaliations || []).find((pending) => pending.defenderId === player.id) || null;
 }
 
+function pendingNuclearDecision() {
+  return (game.pendingNuclearRetaliations || [])[0] || null;
+}
+
 function currentNuclearRetaliationOptions(pending) {
   return (pending?.strikeableTargets || [])
     .map((name) => countryByName.get(name))
@@ -1604,99 +1627,102 @@ function currentNuclearRetaliationOptions(pending) {
     .sort((a, b) => a.name.localeCompare(b.name));
 }
 
-function executeChosenNuclearRetaliation(pending) {
+function nuclearRetaliationPanelHtml(pending) {
+  if (!pending) return "";
+  const defender = game.players.find((player) => player.id === pending.defenderId);
+  const actor = game.players.find((player) => player.id === pending.actorId);
+  const options = currentNuclearRetaliationOptions(pending);
+  const remaining = Number(pending.remaining ?? countryByName.get(pending.targetName)?.magnitude ?? 0);
+  return `
+    <section class="nuclear-retaliation-panel" data-nuclear-retaliation-id="${pending.id}">
+      <strong>Nuclear Retaliation</strong>
+      <p>${defender?.name || "You"} may retaliate from ${pending.targetName} against ${actor?.name || "the attacker"}.</p>
+      <p>${remaining} troop loss${remaining === 1 ? "" : "es"} remaining.</p>
+      ${options.length ? `
+        <label>Target country
+          <select data-nuclear-target size="${Math.min(14, Math.max(4, options.length))}">
+            ${options.map((country) => `<option value="${country.name}">${country.name} (${countryTroops(country.name)} troops)</option>`).join("")}
+          </select>
+        </label>
+        <div class="nuclear-retaliation-actions">
+          <button type="button" class="primary" data-nuclear-action="strike">Retaliate</button>
+          <button type="button" data-nuclear-action="decline">Do Not Retaliate</button>
+        </div>
+      ` : `
+        <p>No legal retaliation targets remain.</p>
+        <button type="button" data-nuclear-action="decline">Continue</button>
+      `}
+    </section>
+  `;
+}
+
+function completePendingNuclearDecision(pending, declined = false) {
   const sourceCountry = countryByName.get(pending.targetName);
   const defender = game.players.find((player) => player.id === pending.defenderId);
   const actor = game.players.find((player) => player.id === pending.actorId);
-  if (!sourceCountry || !actor) return { prescribed: 0, lost: 0, remaining: 0, losses: [], nuclearSources: [], stoppedEarly: false };
-  let remaining = Math.max(0, sourceCountry.magnitude || 0);
-  const losses = [];
-  const nuclearSources = [];
-  let stoppedEarly = false;
-  while (remaining > 0) {
-    const options = currentNuclearRetaliationOptions(pending);
-    if (!options.length) break;
-    const menu = options.map((country, index) => `${index + 1}. ${country.name} (${countryTroops(country.name)} troops)`).join("\n");
-    const answer = prompt(`${defender?.name || "You"}: choose a nuclear retaliation target from ${pending.targetName}, or enter 0 to stop retaliating.\n${remaining} troop loss${remaining === 1 ? "" : "es"} remaining. The game will remove troops from the chosen country up to that remaining total.\n\n0. Stop retaliating\n${menu}`);
-    if (answer === null) {
-      stoppedEarly = true;
-      break;
-    }
-    if (String(answer).trim() === "0") {
-      stoppedEarly = true;
-      break;
-    }
-    const index = Number(answer) - 1;
-    const chosen = options[index] || options.find((country) => country.name.toLowerCase() === String(answer).trim().toLowerCase());
-    if (!chosen) {
-      alert("Choose a listed number or country name.");
-      continue;
-    }
-    const counterSource = isNuclearPower(chosen.name, pending.actorId)
-      ? nuclearCounterSourceSnapshot(chosen.name, pending.actorId, pending.defenderId)
-      : null;
-    const result = applySpecificCountryTroopLoss(chosen.name, remaining);
-    remaining -= result.lost;
-    losses.push(...result.losses);
-    if (counterSource && result.lost > 0) nuclearSources.push(counterSource);
-  }
-  const prescribed = Math.max(0, sourceCountry.magnitude || 0);
+  const prescribed = Math.max(0, sourceCountry?.magnitude || 0);
+  const remaining = Math.max(0, Number(pending.remaining || 0));
   const lost = prescribed - remaining;
-  addPrivateLog(`${defender?.name || "Defender"} retaliates with ${pending.targetName} against ${actor.name}'s chosen countries; ${lost}/${prescribed} troops lost: ${losses.length ? losses.join("; ") : "no troops available"}.`, [pending.defenderId, pending.actorId]);
-  if (stoppedEarly && remaining > 0) {
-    addPrivateLog(`${defender?.name || "Defender"} stops nuclear retaliation from ${pending.targetName} with ${remaining} troop loss${remaining === 1 ? "" : "es"} unused.`, [pending.defenderId, pending.actorId]);
+  game.pendingNuclearRetaliations = (game.pendingNuclearRetaliations || []).filter((item) => item.id !== pending.id);
+  promptedNuclearDecisionIds.delete(pending.id);
+  if (declined && lost <= 0 && !currentNuclearRetaliationOptions(pending).length) {
+    addPrivateLog(`${defender?.name || "Defender"}'s retaliation from ${pending.targetName} is skipped because there are no attacking options.`, [pending.defenderId, pending.actorId]);
+  } else if (declined && lost <= 0) {
+    addPrivateLog(`${defender?.name || "Defender"} declines nuclear retaliation from ${pending.targetName}.`, [pending.defenderId, pending.actorId]);
+  } else {
+    addPrivateLog(`${defender?.name || "Defender"} retaliates with ${pending.targetName} against ${actor?.name || "the attacker"}'s chosen countries; ${lost}/${prescribed} troops lost: ${pending.losses?.length ? pending.losses.join("; ") : "no troops available"}.`, [pending.defenderId, pending.actorId]);
   }
-  return { prescribed, lost, remaining, losses, nuclearSources, stoppedEarly };
+  for (const nuclearCountry of pending.nuclearSources || []) {
+    applyNuclearStrike({
+      sourceName: nuclearCountry.name,
+      fromPlayerId: pending.actorId,
+      targetPlayerId: pending.defenderId,
+      strikeableTargets: nuclearCountry.strikeableTargets,
+      automatic: false,
+      optionalPlayerId: pending.actorId
+    });
+  }
+  checkEliminations();
+  refreshRegionControlAnnouncements();
+  saveGame();
+  render();
 }
 
-function resolvePendingNuclearDecision(id, retaliate) {
+function applyNuclearRetaliationChoice(id, targetName) {
   const pending = (game.pendingNuclearRetaliations || []).find((item) => item.id === id);
   if (!pending) return;
-  const defender = game.players.find((player) => player.id === pending.defenderId);
-  const actor = game.players.find((player) => player.id === pending.actorId);
-  game.pendingNuclearRetaliations = (game.pendingNuclearRetaliations || []).filter((item) => item.id !== id);
-  promptedNuclearDecisionIds.delete(id);
-  if (retaliate) {
-    const result = executeChosenNuclearRetaliation(pending);
-    for (const nuclearCountry of result.nuclearSources) {
-      applyNuclearStrike({
-        sourceName: nuclearCountry.name,
-        fromPlayerId: pending.actorId,
-        targetPlayerId: pending.defenderId,
-        strikeableTargets: nuclearCountry.strikeableTargets,
-        automatic: false,
-        optionalPlayerId: pending.actorId
-      });
-    }
-    checkEliminations();
-    refreshRegionControlAnnouncements();
-  } else {
-    addPrivateLog(`${defender?.name || "Defender"} declines nuclear retaliation from ${pending.targetName}.`, [pending.defenderId, pending.actorId]);
+  if (pending.defenderId !== sessionPlayerId && sessionRole === "player") return;
+  const chosen = currentNuclearRetaliationOptions(pending).find((country) => country.name === targetName);
+  if (!chosen) {
+    alert("That retaliation target is no longer available.");
+    render();
+    return;
+  }
+  const counterSource = isNuclearPower(chosen.name, pending.actorId)
+    ? nuclearCounterSourceSnapshot(chosen.name, pending.actorId, pending.defenderId)
+    : null;
+  const result = applySpecificCountryTroopLoss(chosen.name, Math.max(0, Number(pending.remaining || 0)));
+  pending.remaining = Math.max(0, Number(pending.remaining || 0) - result.lost);
+  pending.losses = [...(pending.losses || []), ...result.losses];
+  if (counterSource && result.lost > 0) pending.nuclearSources = [...(pending.nuclearSources || []), counterSource];
+  if (pending.remaining <= 0) {
+    completePendingNuclearDecision(pending, false);
+    return;
+  }
+  if (!currentNuclearRetaliationOptions(pending).length) {
+    addPrivateLog(`${game.players.find((player) => player.id === pending.defenderId)?.name || "Defender"}'s retaliation from ${pending.targetName} is skipped because there are no attacking options.`, [pending.defenderId, pending.actorId]);
+    completePendingNuclearDecision(pending, false);
+    return;
   }
   saveGame();
   render();
 }
 
-function promptPendingNuclearDecision() {
-  const pending = pendingNuclearDecisionForSession();
-  if (!pending || promptedNuclearDecisionIds.has(pending.id)) return;
-  if (!currentNuclearRetaliationOptions(pending).length) {
-    const defender = game.players.find((player) => player.id === pending.defenderId);
-    const actor = game.players.find((player) => player.id === pending.actorId);
-    game.pendingNuclearRetaliations = (game.pendingNuclearRetaliations || []).filter((item) => item.id !== pending.id);
-    addPrivateLog(`${defender?.name || "Defender"}'s retaliation from ${pending.targetName} is skipped because there are no attacking options.`, [pending.defenderId, pending.actorId]);
-    saveGame();
-    render();
-    return;
-  }
-  promptedNuclearDecisionIds.add(pending.id);
-  const actor = game.players.find((player) => player.id === pending.actorId);
-  const defender = game.players.find((player) => player.id === pending.defenderId);
-  setTimeout(() => {
-    if (!game || !(game.pendingNuclearRetaliations || []).some((item) => item.id === pending.id)) return;
-    const retaliate = confirm(`${defender?.name || "You"} may use nuclear retaliation from ${pending.targetName} against ${actor?.name || "the attacker"}.\n\nPress OK to retaliate.\nPress Cancel to decline.`);
-    resolvePendingNuclearDecision(pending.id, retaliate);
-  }, 0);
+function declinePendingNuclearDecision(id) {
+  const pending = (game.pendingNuclearRetaliations || []).find((item) => item.id === id);
+  if (!pending) return;
+  if (pending.defenderId !== sessionPlayerId && sessionRole === "player") return;
+  completePendingNuclearDecision(pending, true);
 }
 
 function resolveSharedStagingUnclaimedTroops() {
@@ -1832,13 +1858,16 @@ function renderSummary() {
   const player = currentPlayer();
   const self = sessionPlayer();
   const winningPlayer = winner();
-  const pendingNuclear = pendingNuclearDecisionForSession();
+  const pendingNuclear = pendingNuclearDecision();
+  const pendingNuclearDefender = pendingNuclear ? game.players.find((candidate) => candidate.id === pendingNuclear.defenderId) : null;
   $("statusLine").classList.toggle("recruit-alert", Boolean(game && game.phase === "planning" && self?.reserve > 0 && !playerHasSubmittedRecruitPlan(self.id)));
   $("statusLine").textContent = game
     ? winningPlayer
       ? `Game over · ${winningPlayer.name} wins`
-      : pendingNuclear
+      : pendingNuclear && pendingNuclear.defenderId === self?.id
       ? `Nuclear retaliation decision pending for ${pendingNuclear.targetName}`
+      : pendingNuclear
+      ? `Waiting on nuclear retaliation from ${pendingNuclearDefender?.name || "another player"}`
       : game.phase === "planning" && self?.reserve > 0 && !playerHasSubmittedRecruitPlan(self.id)
       ? `Place your ${self.reserve} recruit${self.reserve === 1 ? "" : "s"} now · click one of your countries on the map`
       : game.phase === "planning" && self?.reserve > 0
@@ -1925,10 +1954,13 @@ function renderRecruitDraftStatus(player) {
   const total = recruitDraftTotal(draft);
   const remaining = Math.max(0, player.reserve - total);
   const entries = Object.entries(draft).filter(([, amount]) => Number(amount) > 0).sort(([a], [b]) => a.localeCompare(b));
-  status.textContent = `${total}/${player.reserve} recruits planned · ${remaining} remaining.`;
+  status.textContent = remaining > 0
+    ? `${remaining} recruit${remaining === 1 ? "" : "s"} still need${remaining === 1 ? "s" : ""} to be placed.`
+    : "All recruits placed. Submitting now...";
   list.textContent = entries.length
-    ? `Plan: ${entries.map(([country, amount]) => `${amount} to ${country}`).join("; ")}`
-    : "No recruits planned yet.";
+    ? `Placed this round: ${entries.map(([country, amount]) => `${amount} to ${country}`).join("; ")}`
+    : "Click one of your countries on the map or use the form above.";
+  submitButton.classList.add("hidden");
   submitButton.disabled = player.reserve <= 0 || remaining !== 0;
 }
 
@@ -2109,9 +2141,17 @@ function updateTransferCountries() {
       ]
     : [];
   setOptions($("transferTo"), destinations, (country) => country.name, (country) => country.name);
+  const to = $("transferTo").value;
   const max = from ? (isSharedStaging(from) ? sharedStagingTroops(from, playerId) : movableTroops(from)) : 0;
   $("transferAmount").max = max;
-  $("transferAmount").value = Math.min(Math.max(1, Number($("transferAmount").value || 1)), Math.max(1, max));
+  const transferKey = `${from || ""}|${to || ""}|${max}`;
+  if ($("transferAmount").dataset.transferKey !== transferKey || $("transferAmount").dataset.userEdited !== "true") {
+    $("transferAmount").value = Math.max(1, max);
+    $("transferAmount").dataset.userEdited = "false";
+  } else {
+    $("transferAmount").value = Math.min(Math.max(1, Number($("transferAmount").value || 1)), Math.max(1, max));
+  }
+  $("transferAmount").dataset.transferKey = transferKey;
   $("transferAmount").disabled = max < 1 || destinations.length === 0;
 }
 
@@ -2122,7 +2162,7 @@ function renderTransferQueue() {
 function renderMapTurnFlowButton() {
   const button = $("mapTurnFlowButton");
   if (!button) return;
-  const show = game?.phase === "turn" && playerSessionCanAct() && !winner();
+  const show = game?.phase === "turn" && !pendingNuclearDecision() && playerSessionCanAct() && !winner();
   button.classList.toggle("hidden", !show);
   if (!show) return;
   if (game.turnStage === "transfer") {
@@ -2190,15 +2230,29 @@ function renderRegionProgress(player, elementId) {
   `;
 }
 
+function renderMapHeadlineFor(player, elementId) {
+  const element = $(elementId);
+  if (!element) return;
+  const entry = latestVisibleLogEntryFor(player?.id);
+  element.classList.toggle("hidden", !entry);
+  element.textContent = entry ? logText(entry) : "";
+}
+
 function renderTurn() {
   const player = currentPlayer();
   const playersStillPlacing = playersWithRecruits();
   const winningPlayer = winner();
   const transferStage = game.turnStage === "transfer";
+  const pendingNuclear = pendingNuclearDecision();
+  const pendingNuclearDefender = pendingNuclear ? game.players.find((candidate) => candidate.id === pendingNuclear.defenderId) : null;
   const canAct = playerSessionCanAct();
   const viewingPlayer = visibleSessionPlayer();
   $("turnTitle").textContent = winningPlayer
     ? `${winningPlayer.name} Wins`
+    : pendingNuclear && pendingNuclear.defenderId === sessionPlayerId
+    ? `${pendingNuclearDefender?.name || "Player"}'s Nuclear Retaliation`
+    : pendingNuclear
+    ? "Waiting on Nuclear Retaliation"
     : game.phase === "planning"
     ? `${viewingPlayer?.name || "Player"}'s Map`
     : isPlayerSession() && !canAct
@@ -2208,6 +2262,10 @@ function renderTurn() {
     : "Game Over";
   $("turnNote").textContent = winningPlayer
     ? "Only one player remains. The game is complete."
+    : pendingNuclear && pendingNuclear.defenderId === sessionPlayerId
+    ? `Choose whether to retaliate from ${pendingNuclear.targetName}. You can pick targets one at a time or decline.`
+    : pendingNuclear
+    ? `${pendingNuclearDefender?.name || "Another player"} needs to resolve nuclear retaliation before the turn can continue. Your map remains usable.`
     : game.phase === "planning"
     ? `${playersStillPlacing.length} player${playersStillPlacing.length === 1 ? "" : "s"} still placing recruits. Your map remains visible here.`
     : isPlayerSession() && !canAct
@@ -2217,10 +2275,10 @@ function renderTurn() {
       ? `Click one of your countries on the map to move troops. After this turn, the round ends on a 1 in ${activePlayers().length} roll.`
       : `Attack or claim until finished, then open end-of-turn transfers. After this turn, the round ends on a 1 in ${activePlayers().length} roll.`
     : "Only one player remains.";
-  $("attackSection").classList.toggle("hidden", Boolean(winningPlayer) || transferStage || !canAct);
-  $("transferSection").classList.toggle("hidden", Boolean(winningPlayer) || !transferStage || !canAct);
-  $("finishAttackButton").disabled = Boolean(winningPlayer) || transferStage || !canAct;
-  $("endTurnButton").disabled = Boolean(winningPlayer) || !canAct;
+  $("attackSection").classList.toggle("hidden", Boolean(winningPlayer) || Boolean(pendingNuclear) || transferStage || !canAct);
+  $("transferSection").classList.toggle("hidden", Boolean(winningPlayer) || Boolean(pendingNuclear) || !transferStage || !canAct);
+  $("finishAttackButton").disabled = Boolean(winningPlayer) || Boolean(pendingNuclear) || transferStage || !canAct;
+  $("endTurnButton").disabled = Boolean(winningPlayer) || Boolean(pendingNuclear) || !canAct;
   const owned = player ? ownedCountries(player.id).filter((country) => countryTroops(country.name) > 1) : [];
   setOptions($("claimFrom"), owned, (country) => `${country.name} (${countryTroops(country.name)})`, (country) => country.name);
   setOptions($("attackFrom"), owned, (country) => `${country.name} (${countryTroops(country.name)})`, (country) => country.name);
@@ -2606,7 +2664,7 @@ function contextualActionHtml(country, playerId, detailsId) {
         <label>Recruits
           <input name="amount" type="number" min="1" max="${remaining}" value="1">
         </label>
-        <button type="submit" class="primary">Add to Plan</button>
+        <button type="submit" class="primary">Place Recruits</button>
       </form>
     `;
   }
@@ -2623,7 +2681,7 @@ function contextualActionHtml(country, playerId, detailsId) {
           </select>
         </label>
         <label>Troops
-          <input name="amount" type="number" min="1" max="${movableTroops(country.name)}" value="1">
+          <input name="amount" type="number" min="1" max="${movableTroops(country.name)}" value="${movableTroops(country.name)}">
         </label>
         <button type="submit" class="primary">Transfer</button>
       </form>
@@ -2660,6 +2718,7 @@ function contextualActionHtml(country, playerId, detailsId) {
             <input name="move" type="number" min="1" value="1">
           </label>
           <button type="submit" class="primary">Attack</button>
+          <button type="button" data-context-button="attack-end-state">Attack to End State</button>
         </form>
       ` : ""}
     </div>
@@ -2975,14 +3034,18 @@ function renderPlayerMapFor(player, { svgId, detailsId, unmappedId, labelId }) {
   });
 
   const selected = selectedMapCountry ? visible.get(selectedMapCountry) : null;
+  const pendingNuclear = pendingNuclearDecisionForSession();
   if (selected) {
     svg.querySelectorAll(".map-country").forEach((node) => {
       node.classList.toggle("active", node.dataset.country === selectedMapCountry);
     });
   }
-  $(detailsId).innerHTML = selected
+  const selectedDetails = selected
     ? visibleDetailHtml(selected.country, selected.visibility, playerId) + contextualActionHtml(selected.country, playerId, detailsId)
     : "<strong>Visible Map</strong><p>Select a country on the map or a visible place below to see details.</p>";
+  $(detailsId).innerHTML = pendingNuclear
+    ? nuclearRetaliationPanelHtml(pendingNuclear) + selectedDetails
+    : selectedDetails;
   updateContextAttackDice(detailsId);
   updateContextClaimAmount(detailsId);
 }
@@ -2997,6 +3060,7 @@ function renderVisible() {
     unmappedId: "unmappedVisible",
     labelId: "visiblePlayerLabel"
   });
+  renderMapHeadlineFor(player, "mapHeadline");
   renderRegionProgress(player, "regionProgress");
 }
 
@@ -3008,6 +3072,7 @@ function renderPlanningVisible() {
     unmappedId: "planningUnmappedVisible",
     labelId: "planningVisiblePlayerLabel"
   });
+  renderMapHeadlineFor(player, "planningMapHeadline");
   renderRegionProgress(player, "planningRegionProgress");
 }
 
@@ -3187,7 +3252,6 @@ function render() {
   renderTurn();
   renderVisible();
   renderLog();
-  promptPendingNuclearDecision();
   const activeTab = document.querySelector(".tab.active")?.dataset.tab;
   showTab(canOpenTab(activeTab) ? activeTab : preferredOpenTab());
 }
@@ -3636,6 +3700,48 @@ function updateContextClaimAmount(rootId = "mapDetails") {
   });
 }
 
+function prepareAttackForm(from, target) {
+  $("attackFrom").value = from;
+  updateAttackTargets();
+  $("attackTo").value = target;
+  updateAttackDice();
+  const option = viableAttackOptionsFor(from).find((item) => item.target === target);
+  const maxDice = option ? attackKeptDiceMaxFor(from, option.maxDice) : 0;
+  if (maxDice > 0) $("attackDice").value = String(maxDice);
+  $("conquestMove").value = String(Math.max(1, countryTroops(from) - 1));
+  return option;
+}
+
+function attackToEndState(from, target) {
+  if (game.phase === "gameover") {
+    alert("The game is over.");
+    return;
+  }
+  const attacker = currentPlayer();
+  if (!attacker || !from || !target) return;
+  let attacks = 0;
+  while (attacks < 250) {
+    if (pendingNuclearDecision() || game.phase === "gameover") break;
+    if (game.ownership[from] !== attacker.id || countryTroops(from) <= 1 || game.ownership[target] === attacker.id) break;
+    const option = prepareAttackForm(from, target);
+    if (!option) break;
+    const maxDice = attackKeptDiceMaxFor(from, option.maxDice);
+    if (maxDice < 1) break;
+    $("attackDice").value = String(maxDice);
+    $("conquestMove").value = String(Math.max(1, countryTroops(from) - 1));
+    handleAttack({ preventDefault() {} });
+    attacks += 1;
+  }
+  if (attacks >= 250) addPrivateLog(`${attacker.name}'s attack to end state stops after 250 attacks.`, [attacker.id, game.ownership[target]]);
+  saveGame();
+  render();
+}
+
+function submitContextAttackToEndState(form) {
+  if (!form) return;
+  attackToEndState(form.dataset.from, form.elements.target.value);
+}
+
 function submitContextAction(form) {
   const action = form.dataset.contextAction;
   if (action === "place-recruits") {
@@ -3746,10 +3852,23 @@ function bindEvents() {
       submitContextAction(form);
     });
     $(id).addEventListener("click", (event) => {
+      const nuclearButton = event.target.closest("[data-nuclear-action]");
+      if (nuclearButton) {
+        const panel = nuclearButton.closest("[data-nuclear-retaliation-id]");
+        const pendingId = panel?.dataset.nuclearRetaliationId;
+        if (!pendingId) return;
+        if (nuclearButton.dataset.nuclearAction === "decline") {
+          declinePendingNuclearDecision(pendingId);
+        } else if (nuclearButton.dataset.nuclearAction === "strike") {
+          applyNuclearRetaliationChoice(pendingId, panel.querySelector("[data-nuclear-target]")?.value);
+        }
+        return;
+      }
       const button = event.target.closest("[data-context-button]");
       if (!button) return;
       if (button.dataset.contextButton === "finish-attacking") $("finishAttackButton").click();
       if (button.dataset.contextButton === "end-turn") $("endTurnButton").click();
+      if (button.dataset.contextButton === "attack-end-state") submitContextAttackToEndState(button.closest('[data-context-action="attack"]'));
     });
   });
   $("openLogButton").addEventListener("click", () => {
@@ -3770,8 +3889,16 @@ function bindEvents() {
     $(id).addEventListener("input", renderBoard);
   });
   $("placePlayer").addEventListener("change", updatePlaceCountries);
-  $("transferFrom").addEventListener("change", updateTransferCountries);
+  $("transferFrom").addEventListener("change", () => {
+    $("transferAmount").dataset.userEdited = "false";
+    updateTransferCountries();
+  });
+  $("transferTo").addEventListener("change", () => {
+    $("transferAmount").dataset.userEdited = "false";
+    updateTransferCountries();
+  });
   $("transferAmount").addEventListener("input", () => {
+    $("transferAmount").dataset.userEdited = "true";
     const max = Number($("transferAmount").max || 0);
     if (max > 0 && Number($("transferAmount").value) > max) $("transferAmount").value = max;
   });
@@ -3783,6 +3910,9 @@ function bindEvents() {
   $("claimTo").addEventListener("change", updateClaimTargets);
   $("attackFrom").addEventListener("change", updateAttackTargets);
   $("attackTo").addEventListener("change", updateAttackDice);
+  $("attackToEndStateButton").addEventListener("click", () => {
+    attackToEndState($("attackFrom").value, $("attackTo").value);
+  });
   $("placeForm").addEventListener("submit", async (event) => {
     event.preventDefault();
     const player = game.players.find((p) => p.id === $("placePlayer").value);
@@ -3830,6 +3960,7 @@ function bindEvents() {
     }
     addPrivateLog(`${player.name} transfers ${amount} from ${from} to ${to}.`, [player.id]);
     resolveSharedStagingUnclaimedTroops();
+    $("transferAmount").dataset.userEdited = "false";
     saveGame();
     render();
   });

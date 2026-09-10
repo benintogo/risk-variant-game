@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Risk Variant Game</title>
-    <link rel="stylesheet" href="styles.css?v=20260810-satellite-image-1">
+    <link rel="stylesheet" href="styles.css?v=20260909-gameplay-flow-1">
   </head>
   <body>
     <header class="topbar">
@@ -143,7 +143,7 @@
             <label>Player <select id="placePlayer"></select></label>
             <label>Country <select id="placeCountry"></select></label>
             <label>Troops <input id="placeAmount" type="number" min="1" value="1"></label>
-            <button type="submit" class="primary">Add to Plan</button>
+            <button type="submit" class="primary">Place Recruits</button>
             <div id="planningDraftList" class="note"></div>
             <button id="submitRecruitPlanButton" type="button" class="primary">Submit Recruit Plan</button>
           </form>
@@ -155,6 +155,7 @@
             </div>
             <div class="map-layout player-map-layout">
               <div class="map-shell" style="width: calc(100vw - 86px); max-width: none;">
+                <div id="planningMapHeadline" class="map-headline hidden"></div>
                 <svg id="planningPlayerMap" viewBox="0 0 1000 500" role="img" aria-label="Recruit player's visible countries on the world map" style="width: 100%;"></svg>
                 <aside id="planningMapDetails" class="map-details map-details-inset" style="position: absolute; top: 58px; right: 14px; z-index: 3; width: 280px; max-height: 300px; overflow: auto;">
                   <strong>Visible Map</strong>
@@ -177,6 +178,7 @@
               </div>
             </div>
             <p class="note" id="turnNote"></p>
+            <div id="nuclearRetaliationPanel" class="nuclear-retaliation-panel hidden"></div>
           </div>
 
           <div id="attackSection" class="two-col">
@@ -195,6 +197,7 @@
               <label>Attack dice <select id="attackDice"></select></label>
               <label>Move on conquest <input id="conquestMove" type="number" min="1" value="1"></label>
               <button type="submit" class="primary">Attack</button>
+              <button id="attackToEndStateButton" type="button">Attack to End State</button>
             </form>
           </div>
 
@@ -223,6 +226,7 @@
             </div>
             <div class="map-layout player-map-layout">
               <div class="map-shell" style="width: calc(100vw - 86px); max-width: none;">
+                <div id="mapHeadline" class="map-headline hidden"></div>
                 <button id="resetMapButton" type="button" class="map-reset">Reset Map</button>
                 <button id="mapTurnFlowButton" type="button" class="map-turn-flow">Finished Attacking</button>
                 <svg id="playerMap" viewBox="0 0 1000 500" role="img" aria-label="Visible countries on the world map" style="width: 100%;"></svg>
@@ -262,6 +266,6 @@
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="supabase-config.js?v=20260531-online-save-1"></script>
-    <script src="app.js?v=20260810-satellite-image-1"></script>
+    <script src="app.js?v=20260909-gameplay-flow-1"></script>
   </body>
 </html>

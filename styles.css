@@ -465,6 +465,49 @@ td {
   color: #fff;
 }
 
+.map-headline {
+  position: absolute;
+  top: 14px;
+  left: 50%;
+  z-index: 5;
+  max-width: min(720px, calc(100% - 360px));
+  padding: 8px 14px;
+  transform: translateX(-50%);
+  border: 1px solid rgba(255, 255, 255, 0.64);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.9);
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.16);
+  color: #111827;
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.25;
+  pointer-events: none;
+  text-align: center;
+}
+
+.nuclear-retaliation-panel,
+.map-details .nuclear-retaliation-panel {
+  display: grid;
+  gap: 10px;
+}
+
+.nuclear-retaliation-panel.hidden {
+  display: none;
+}
+
+.nuclear-retaliation-panel select {
+  min-height: 180px;
+}
+
+.nuclear-retaliation-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.nuclear-retaliation-actions button {
+  flex: 1;
+}
+
 .map-action-panel {
   display: grid;
   gap: 10px;
