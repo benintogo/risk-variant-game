@@ -482,8 +482,17 @@ function visibleIcbmMarkerFor(countryName, visibility) {
   return Boolean(countryName && visibility && visibility !== "Same region" && STRATEGIC_NUCLEAR_RETALIATORS.has(countryName));
 }
 
+function visibleCapitalMarkerFor(countryName, playerId, visibility) {
+  if (!countryName || !visibility || isSharedStaging(countryName)) return false;
+  const ownerId = game.ownership[countryName];
+  if (!ownerId || !isCapitalCountry(countryName, ownerId)) return false;
+  if (ownerId === playerId) return true;
+  return visibility !== "Same region";
+}
+
 function visibleCapabilityMarkers(country, visibility, playerId) {
   const markers = [];
+  if (visibleCapitalMarkerFor(country.name, playerId, visibility)) markers.push("capital");
   if (visibleNuclearMarkerFor(country.name, playerId, visibility)) markers.push("nuclear");
   if (visibleSatelliteMarkerFor(country.name, playerId, visibility)) markers.push("satellite");
   if (visibleIcbmMarkerFor(country.name, visibility)) markers.push("missile");
@@ -2869,6 +2878,17 @@ function appendSatelliteSymbol(parent) {
   });
 }
 
+function appendCapitalSymbol(parent) {
+  appendSvgElement(parent, "image", {
+    href: "assets/capital-symbol.png",
+    x: -13,
+    y: -13,
+    width: 26,
+    height: 26,
+    preserveAspectRatio: "xMidYMid meet"
+  });
+}
+
 function appendMissileSymbol(parent) {
   const angled = appendSvgElement(parent, "g", { transform: "rotate(45)" });
   appendSvgElement(angled, "path", { d: "M -3 -13 Q 0 -18 3 -13 L 3 9 Q 0 12 -3 9 Z" });
@@ -2893,6 +2913,7 @@ function appendCapabilityMarker(svg, entry) {
       class: `capability-marker-icon capability-marker-${marker}`,
       transform: `translate(${(startX + index * spacing).toFixed(2)} 0) scale(0.72)`
     });
+    if (marker === "capital") appendCapitalSymbol(icon);
     if (marker === "nuclear") appendNuclearSymbol(icon);
     if (marker === "satellite") appendSatelliteSymbol(icon);
     if (marker === "missile") appendMissileSymbol(icon);
