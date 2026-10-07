@@ -1,5 +1,5 @@
 const DATA_URL = "data/risk-places.csv";
-const MAP_URL = "data/world-map.json?v=20260519-portugal-crimea-1";
+const MAP_URL = "data/world-map.json?v=20261007-prince-edward-split-1";
 const SAVE_KEY = "risk-variant-moderator-v1";
 const ONLINE_GAME_ID_KEY = "risk-variant-online-game-id";
 const SESSION_ROLE_KEY = "risk-variant-session-role";
