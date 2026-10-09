@@ -2902,7 +2902,7 @@ function appendCapabilityMarker(svg, entry) {
   if (!point || !entry.markers?.length) return;
   const spacing = 20;
   const startX = -((entry.markers.length - 1) * spacing) / 2;
-  const yOffset = Math.max(16, entry.lines.length * 13 + 8);
+  const yOffset = 12 + Math.max(0, entry.lines.length - 1) * 12;
   const group = appendSvgElement(svg, "g", {
     class: "capability-marker",
     "data-country": entry.country.name,
