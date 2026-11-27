@@ -3334,7 +3334,7 @@ async function loadManualContent() {
   const target = $("manualContent");
   if (!target || target.dataset.loaded === "true") return;
   if (!manualLoadPromise) {
-    manualLoadPromise = fetch("PLAYER_MANUAL.html?v=player-guide-3").then((response) => {
+    manualLoadPromise = fetch("PLAYER_MANUAL.html?v=player-guide-4").then((response) => {
       if (!response.ok) throw new Error("Manual could not be loaded.");
       return response.text();
     });
