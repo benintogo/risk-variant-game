@@ -366,7 +366,7 @@ function winner() {
   return game.players.find((player) => player.id === game.winnerId) || null;
 }
 
-function recordTurnSnapshot(label) {
+function recordTurnSnapshot(label, playerId = null) {
   if (!game) return;
   game.turnHistory ||= [];
   const ownership = {};
@@ -378,6 +378,7 @@ function recordTurnSnapshot(label) {
   }
   game.turnHistory.push({
     label,
+    playerId,
     round: game.round,
     ownership,
     troops,
@@ -1240,6 +1241,18 @@ function startNewRound(reason) {
 
 function startNewRoundAfterRoll(remaining) {
   startNewRound(`The round ended on a roll of 1 out of ${remaining}.`);
+}
+
+function openingTurnsComplete(endingPlayerId) {
+  if (game.round > 1) return true;
+  const players = activePlayers();
+  const completed = new Set([endingPlayerId]);
+  // Older turn snapshots recorded the player's name in the label only.
+  const legacyLabels = new Map(players.map((player) => [`After ${player.name}'s turn in round 1`, player.id]));
+  for (const snapshot of game.turnHistory || []) {
+    completed.add(snapshot.playerId || legacyLabels.get(snapshot.label));
+  }
+  return players.every((player) => completed.has(player.id));
 }
 
 function markTurnAction() {
@@ -2305,6 +2318,9 @@ function renderTurn() {
     : player
     ? `${player.name}'s Turn`
     : "Game Over";
+  const roundEndNote = openingTurnsComplete(player?.id)
+    ? `After this turn, the round ends on a 1 in ${activePlayers().length} roll.`
+    : "Round-end rolls begin once every remaining player has taken a turn.";
   $("turnNote").textContent = winningPlayer
     ? "Only one player remains. The game is complete."
     : pendingNuclear && pendingNuclear.defenderId === sessionPlayerId
@@ -2317,8 +2333,8 @@ function renderTurn() {
     ? `It is currently ${player?.name || "another player"}'s turn. Your map remains visible here.`
     : player
     ? transferStage
-      ? `Click one of your countries on the map to move troops. After this turn, the round ends on a 1 in ${activePlayers().length} roll.`
-      : `Attack or claim until finished, then open end-of-turn transfers. After this turn, the round ends on a 1 in ${activePlayers().length} roll.`
+      ? `Click one of your countries on the map to move troops. ${roundEndNote}`
+      : `Attack or claim until finished, then open end-of-turn transfers. ${roundEndNote}`
     : "Only one player remains.";
   $("attackSection").classList.toggle("hidden", Boolean(winningPlayer) || Boolean(pendingNuclear) || transferStage || !canAct);
   $("transferSection").classList.toggle("hidden", Boolean(winningPlayer) || Boolean(pendingNuclear) || !transferStage || !canAct);
@@ -3358,7 +3374,7 @@ async function loadManualContent() {
   const target = $("manualContent");
   if (!target || target.dataset.loaded === "true") return;
   if (!manualLoadPromise) {
-    manualLoadPromise = fetch("PLAYER_MANUAL.html?v=player-guide-6").then((response) => {
+    manualLoadPromise = fetch("PLAYER_MANUAL.html?v=player-guide-7").then((response) => {
       if (!response.ok) throw new Error("Manual could not be loaded.");
       return response.text();
     });
@@ -4223,14 +4239,14 @@ function bindEvents() {
       render();
       return;
     }
-    if (endingPlayer) recordTurnSnapshot(`After ${endingPlayer.name}'s turn in round ${game.round}`);
+    if (endingPlayer) recordTurnSnapshot(`After ${endingPlayer.name}'s turn in round ${game.round}`, endingPlayer.id);
     advanceTurn();
     game.turnStage = "attack";
     lastRenderedTurnPlayerId = currentPlayer()?.id || "";
     game.turnHadAction = false;
     if (automaticRound) {
       startNewRound("All remaining players passed in succession.");
-    } else {
+    } else if (openingTurnsComplete(endingPlayer?.id)) {
       const roll = Math.floor(Math.random() * remaining) + 1;
       if (roll === 1) {
         startNewRoundAfterRoll(remaining);

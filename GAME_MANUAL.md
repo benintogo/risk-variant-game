@@ -41,7 +41,7 @@ When the turn changes to the next player, the player map automatically resets an
 
 ## Rounds
 
-A round is not the same as every player taking one turn. After each player's turn, there is a chance that the round ends.
+The first round-end roll happens after every remaining player has completed at least one turn. From then on, there is a chance the round ends after each turn.
 
 The chance of the round ending after a turn is:
 
