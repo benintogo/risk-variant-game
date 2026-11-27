@@ -2946,6 +2946,7 @@ function appendNuclearSymbol(parent) {
 function appendSatelliteSymbol(parent) {
   appendSvgElement(parent, "image", {
     href: "assets/satellite-symbol.png",
+    filter: "url(#satellite-symbol-transparency)",
     x: -15.8,
     y: -16.5,
     width: 31.6,

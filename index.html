@@ -7,6 +7,18 @@
     <link rel="stylesheet" href="styles.css?v=map-legend-1">
   </head>
   <body>
+    <svg width="0" height="0" aria-hidden="true" style="position: absolute">
+      <defs>
+        <!-- Convert the dark silhouette to alpha and clear the light checkerboard. -->
+        <filter id="satellite-symbol-transparency" color-interpolation-filters="sRGB">
+          <feColorMatrix type="matrix" values="
+            0 0 0 0 0
+            0 0 0 0 0
+            0 0 0 0 0
+            -0.2362 -0.7947 -0.0802 0 1"></feColorMatrix>
+        </filter>
+      </defs>
+    </svg>
     <header class="topbar">
       <div>
         <h1>Risk Variant Game</h1>
@@ -286,6 +298,6 @@
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="supabase-config.js?v=20260531-online-save-1"></script>
-    <script src="app.js?v=map-legend-1"></script>
+    <script src="app.js?v=transparent-satellite-1"></script>
   </body>
 </html>
