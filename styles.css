@@ -1134,7 +1134,7 @@ body.playing-game {
   min-width: 0;
   transform: none;
   box-shadow: none;
-  margin-bottom: 8px;
+  margin-top: 10px;
 }
 
 .playing-game button.primary {
@@ -1147,26 +1147,38 @@ body.playing-game {
 }
 
 #gameView .map-headline {
-  top: 60px;
-  left: 12px;
-  max-width: min(560px, calc(100% - 370px));
-  transform: none;
+  top: 12px;
+  width: max-content;
+  max-width: min(560px, calc(100% - 724px));
   border-radius: 8px;
-  text-align: left;
+  overflow-wrap: anywhere;
 }
 
-#gameView:has(#headerGameIdBox[open]) .map-headline {
-  top: 112px;
-}
+@media (max-width: 960px) {
+  #gameView {
+    --headline-top: 60px;
+    --toolbar-top: var(--headline-top);
+  }
 
-#gameView:has(#gameToolbarContents.hidden) .map-headline {
-  max-width: min(560px, calc(100% - 170px));
-}
+  #gameView:has(#headerGameIdBox[open]) {
+    --headline-top: 112px;
+  }
 
-@media (max-width: 680px) {
+  #gameView:has(.tab-view:not(.hidden) .map-headline:not(.hidden)) {
+    --toolbar-top: calc(var(--headline-top) + 78px);
+  }
+
+  #gameView .map-headline {
+    top: var(--headline-top);
+    max-width: min(560px, calc(100% - 24px));
+    max-height: 72px;
+    overflow: auto;
+    pointer-events: auto;
+  }
+
   .game-toolbar {
-    top: 60px;
-    max-height: calc(100% - 122px);
+    top: var(--toolbar-top);
+    max-height: calc(100% - var(--toolbar-top) - 62px);
   }
 }
 
@@ -1187,15 +1199,13 @@ body.playing-game {
     pointer-events: none;
   }
 
-  .map-corner .map-legend,
-  #gameView .map-corner .map-headline,
-  #gameView:has(#gameToolbarContents.hidden) .map-corner .map-headline {
+  .map-corner .map-legend {
     position: static;
     max-width: min(320px, 100%);
   }
 
   .game-toolbar {
     width: min(310px, 80%);
-    max-height: calc(100% - 162px);
+    max-height: calc(100% - var(--toolbar-top) - 102px);
   }
 }

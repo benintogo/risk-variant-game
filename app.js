@@ -2184,7 +2184,7 @@ function renderMapTurnFlowButton() {
   const show = game?.phase === "turn" && !pendingNuclearDecision() && playerSessionCanAct() && !winner();
   button.classList.toggle("hidden", !show);
   if (!show) return;
-  button.textContent = game.turnStage === "transfer" ? "End Turn" : "Finished Attacking";
+  button.textContent = game.turnStage === "transfer" ? "End Turn" : "Done Attacking This Turn";
 }
 
 function regionProgressFor(playerId) {
@@ -3328,7 +3328,7 @@ async function loadManualContent() {
   const target = $("manualContent");
   if (!target || target.dataset.loaded === "true") return;
   if (!manualLoadPromise) {
-    manualLoadPromise = fetch("PLAYER_MANUAL.html?v=player-guide-5").then((response) => {
+    manualLoadPromise = fetch("PLAYER_MANUAL.html?v=player-guide-6").then((response) => {
       if (!response.ok) throw new Error("Manual could not be loaded.");
       return response.text();
     });
@@ -3508,8 +3508,7 @@ function bindInteractivePlayerMap({ svgId, getPlayer, renderMap, detailsId }) {
 }
 
 function bindMapControls() {
-  $("turnToolbar").prepend($("mapTurnFlowButton"));
-  $("turnToolbar").append($("mapDetails"), $("unmappedVisible"), $("regionProgress"));
+  $("turnToolbar").append($("mapDetails"), $("unmappedVisible"), $("regionProgress"), $("mapTurnFlowButton"));
   $("planningToolbar").append($("planningMapDetails"), $("planningUnmappedVisible"), $("planningRegionProgress"));
   $("toggleGameToolbar").addEventListener("click", (event) => {
     const collapsed = $("gameToolbarContents").classList.toggle("hidden");
