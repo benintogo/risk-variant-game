@@ -182,7 +182,10 @@ const PLAYER_COLORS = [
   "#c47ac0",
   "#d4874a",
   "#68a9c7",
-  "#9aa152"
+  "#9aa152",
+  "#bd526d", "#8f73d4", "#76bf60", "#b17b9e", "#e4be82", "#437ba9",
+  "#dc8eb1", "#ad6438", "#c3c85b", "#4e91a1", "#a7a3e7", "#9c4045",
+  "#31805d"
 ];
 
 const ANTARCTICA_NAME = "Antarctica";
@@ -648,11 +651,19 @@ function shuffled(items) {
   return copy;
 }
 
-function startGame(names, computerPlayerId = null) {
+function isSoloGame() {
+  return Boolean(game?.computerPlayerIds?.length);
+}
+
+function isComputerPlayer(playerId) {
+  return game?.computerPlayerIds?.includes(playerId) ?? false;
+}
+
+function startGame(names, computerPlayerIds = []) {
   localMapSelections.clear();
   game = blankState();
-  if (computerPlayerId) {
-    game.computerPlayerId = computerPlayerId;
+  if (computerPlayerIds.length) {
+    game.computerPlayerIds = computerPlayerIds;
     game.soloSaveId = `solo-${Date.now()}`;
   }
   game.players = names.map((name, index) => ({
@@ -697,7 +708,7 @@ function saveGame() {
 }
 
 function saveLocalGame() {
-  if (game) localStorage.setItem(game.computerPlayerId ? SOLO_SAVE_KEY : SAVE_KEY, JSON.stringify(game));
+  if (game) localStorage.setItem(isSoloGame() ? SOLO_SAVE_KEY : SAVE_KEY, JSON.stringify(game));
 }
 
 function recruitDraftKey(playerId = sessionPlayerId) {
@@ -727,6 +738,10 @@ function recruitDraftTotal(draft) {
 
 function normalizeLoadedGame() {
   if (!game) return;
+  if (game.computerPlayerId) {
+    game.computerPlayerIds ||= [game.computerPlayerId];
+    delete game.computerPlayerId;
+  }
   game.turnStage ||= "attack";
   game.turnHadAction = Boolean(game.turnHadAction);
   game.consecutivePasses ||= [];
@@ -1803,11 +1818,11 @@ function resolveSharedStagingUnclaimedTroops() {
 function concludeGameIfWon() {
   if (game.phase === "gameover") return true;
   const remaining = activePlayers();
-  if (game.computerPlayerId && pendingNuclearDecision()) return false;
-  if (game.computerPlayerId && !remaining.length) {
+  if (isSoloGame() && pendingNuclearDecision()) return false;
+  if (isSoloGame() && !remaining.length) {
     recordTurnSnapshot("Game over: draw");
     game.phase = "gameover";
-    addLog("The game ends in a draw. Neither player has any countries left.");
+    addLog("The game ends in a draw. No player has any countries left.");
     return true;
   }
   if (remaining.length === 1) {
@@ -2145,7 +2160,7 @@ async function submitRecruitPlan() {
     render();
     return;
   }
-  if (game.computerPlayerId) {
+  if (isSoloGame()) {
     game.recruitPlans[player.id] = { submitted: true, placements: validation.placements, round: game.round };
   } else {
     applyRecruitPlanToBoard(player.id, validation.placements);
@@ -3444,7 +3459,7 @@ function render() {
   $("setupView").classList.toggle("hidden", Boolean(game) || !setupMode);
   $("gameView").classList.toggle("hidden", !game);
   $("resumeSinglePlayerButton").classList.toggle("hidden", !localStorage.getItem(SOLO_SAVE_KEY));
-  $("refreshGameButton").classList.toggle("hidden", Boolean(game?.computerPlayerId));
+  $("refreshGameButton").classList.toggle("hidden", isSoloGame());
   const gameIdBox = $("headerGameIdBox");
   gameIdBox.classList.toggle("hidden", !game || !onlineGameId);
   if (!game || !onlineGameId) gameIdBox.open = false;
@@ -3838,10 +3853,10 @@ function handleLimitedAttack(attacker, from, target, option, requestedMove) {
     requestedMove ||= minimumMove;
     const movable = countryTroops(from) - 1;
     if (requestedMove > movable) {
-      if (attacker.id !== game.computerPlayerId) alert("The starting country does not have enough movable troops.");
+      if (!isComputerPlayer(attacker.id)) alert("The starting country does not have enough movable troops.");
       addPrivateLog(`${attacker.name} attacked ${target} from ${from}. There were too few troops available to move.`, [attacker.id]);
     } else if (requestedMove < minimumMove) {
-      if (attacker.id !== game.computerPlayerId) alert("Move on conquest is not high enough.");
+      if (!isComputerPlayer(attacker.id)) alert("Move on conquest is not high enough.");
       addPrivateLog(`${attacker.name} attacked ${target} from ${from}. The chosen troop move was too small.`, [attacker.id]);
     } else {
       markTurnAction();
@@ -4127,29 +4142,26 @@ function finishTurn() {
 }
 
 function nextComputerAction() {
-  const player = game?.players.find(({ id }) => id === game.computerPlayerId);
-  if (!player || game.phase === "gameover") return null;
+  if (!isSoloGame() || game.phase === "gameover") return null;
   const pending = pendingNuclearDecision();
   if (pending) {
-    if (pending.defenderId !== player.id) return null;
+    const defenderId = pending.defenderId;
+    if (!isComputerPlayer(defenderId)) return null;
     return () => {
       const targets = currentNuclearRetaliationOptions(pending);
       const target = targets.sort((a, b) =>
         Math.min(countryTroops(b.name), pending.remaining) - Math.min(countryTroops(a.name), pending.remaining)
       )[0];
-      if (target) applyNuclearRetaliationChoice(pending.id, target.name, player.id);
-      else declinePendingNuclearDecision(pending.id, player.id);
+      if (target) applyNuclearRetaliationChoice(pending.id, target.name, defenderId);
+      else declinePendingNuclearDecision(pending.id, defenderId);
     };
   }
-  if (player.eliminated) return null;
   if (game.phase === "planning") {
-    return player.reserve > 0 && !playerHasSubmittedRecruitPlan(player.id)
-      ? () => playComputerStep(player)
-      : null;
+    const player = playersAwaitingRecruitPlans().find(({ id }) => isComputerPlayer(id));
+    return player ? () => playComputerStep(player) : null;
   }
-  return game.phase === "turn" && currentPlayer()?.id === player.id
-    ? () => playComputerStep(player)
-    : null;
+  const player = game.phase === "turn" ? currentPlayer() : null;
+  return player && isComputerPlayer(player.id) ? () => playComputerStep(player) : null;
 }
 
 let computerMoveTimer = null;
@@ -4261,11 +4273,15 @@ function playComputerStep(player) {
 
 function bindEvents() {
   $("newSinglePlayerButton").addEventListener("click", () => {
+    const countInput = $("computerOpponentCount");
+    if (!countInput.reportValidity()) return;
+    const count = countInput.valueAsNumber;
     if (localStorage.getItem(SOLO_SAVE_KEY) && !confirm("Replace your saved single-player game?")) return;
     stopOnlineRefresh();
     rememberOnlineGameId("");
     setSession("player", "p1");
-    startGame(["You", "Computer"], "p2");
+    const opponents = Array.from({ length: count }, (_, i) => `Computer ${i + 1}`);
+    startGame(["You", ...opponents], opponents.map((_, i) => `p${i + 2}`));
   });
   $("resumeSinglePlayerButton").addEventListener("click", () => {
     let saved;
@@ -4275,7 +4291,7 @@ function bindEvents() {
       alert("Your single-player save could not be opened.");
       return;
     }
-    if (!saved?.computerPlayerId) return;
+    if (!saved?.computerPlayerId && !saved?.computerPlayerIds?.length) return;
     stopOnlineRefresh();
     rememberOnlineGameId("");
     setSession("player", "p1");
@@ -4317,7 +4333,7 @@ function bindEvents() {
   $("forfeitButton").addEventListener("click", forfeitCurrentSessionPlayer);
   $("loadOnlineGameButton").addEventListener("click", () => loadOnlineGame());
   $("mainMenuButton").addEventListener("click", () => {
-    if (game && !confirm(game.computerPlayerId
+    if (game && !confirm(isSoloGame()
       ? "Exit to the menu? You can resume this single-player game in this browser."
       : "Exit this game? You can rejoin an online game with its Game ID.")) return;
     stopOnlineRefresh();

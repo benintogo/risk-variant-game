@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Risk Variant Game</title>
-    <link rel="stylesheet" href="styles.css?v=centered-map-prompt-1">
+    <link rel="stylesheet" href="styles.css?v=single-player-2">
   </head>
   <body>
     <svg width="0" height="0" aria-hidden="true" style="position: absolute">
@@ -29,7 +29,11 @@
     <main>
       <section id="singlePlayerEntry" class="panel online-panel">
         <h2>Single Player</h2>
-        <div class="entry-actions">
+        <div class="entry-actions solo-entry-actions">
+          <label>
+            Computer opponents
+            <input id="computerOpponentCount" type="number" min="1" max="20" step="1" value="1" required>
+          </label>
           <button id="newSinglePlayerButton" type="button" class="primary">Play Computer</button>
           <button id="resumeSinglePlayerButton" type="button" class="hidden">Resume Game</button>
         </div>
@@ -308,6 +312,6 @@
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="supabase-config.js?v=20260531-online-save-1"></script>
-    <script src="app.js?v=single-player-1"></script>
+    <script src="app.js?v=single-player-2"></script>
   </body>
 </html>

@@ -119,6 +119,15 @@ main {
   margin: 14px 0;
 }
 
+.solo-entry-actions {
+  align-items: end;
+  flex-wrap: wrap;
+}
+
+.solo-entry-actions input {
+  width: 100%;
+}
+
 .setup-player-name {
   max-width: 340px;
   margin: 16px 0;
