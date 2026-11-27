@@ -719,7 +719,7 @@ form.map-action-panel {
   stroke: rgba(172, 231, 232, 0.9);
   stroke-width: 1.5;
   filter: drop-shadow(0 16px 26px rgba(0, 0, 0, 0.35));
-  pointer-events: none;
+  pointer-events: visibleFill;
 }
 
 .ocean-grain {
