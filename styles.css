@@ -528,24 +528,6 @@ form.map-action-panel {
   width: 100%;
 }
 
-.log-dock,
-.manual-dock {
-  position: fixed;
-  bottom: 16px;
-  z-index: 20;
-  min-width: 92px;
-  background: rgba(255, 255, 255, 0.94);
-  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.18);
-}
-
-.log-dock {
-  left: 18px;
-}
-
-.manual-dock {
-  left: 122px;
-}
-
 #logTab,
 #manualTab {
   position: fixed;
@@ -907,5 +889,145 @@ form.map-action-panel {
 
   main {
     padding: 14px;
+  }
+}
+
+html:has(body.playing-game),
+body.playing-game {
+  overflow: hidden;
+  overscroll-behavior: none;
+}
+
+.playing-game main {
+  padding: 0;
+}
+
+#gameView {
+  position: fixed;
+  inset: 0;
+  overflow: hidden;
+  background: #04172c;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+#gameView .player-map-panel,
+#gameView .player-map-layout,
+#gameView .player-map-layout .map-shell {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
+  border: 0;
+  border-radius: 0;
+}
+
+#playerMap,
+#planningPlayerMap {
+  touch-action: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+.game-toolbar {
+  position: absolute;
+  z-index: 10;
+  top: 10px;
+  right: 10px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 6px;
+  max-height: calc(100% - 20px);
+  width: min(340px, calc(100% - 20px));
+  pointer-events: none;
+}
+
+.game-toolbar > * {
+  pointer-events: auto;
+}
+
+.game-toolbar-contents {
+  width: 100%;
+  min-height: 0;
+  overflow: auto;
+  overscroll-behavior: contain;
+  padding: 12px;
+  border-radius: 8px;
+  background: var(--panel);
+  box-shadow: 0 8px 24px #0004;
+  overflow-wrap: anywhere;
+}
+
+.game-toolbar .topbar {
+  position: static;
+  display: grid;
+  gap: 8px;
+  padding: 0 0 10px;
+}
+
+.game-toolbar .topbar h1 {
+  font-size: 16px;
+}
+
+.game-toolbar .header-game-id {
+  max-width: 100%;
+}
+
+.game-toolbar .header-game-id label,
+.game-toolbar .header-game-id input {
+  min-width: 0;
+}
+
+#gameView svg.panning * {
+  cursor: grabbing;
+}
+
+.game-toolbar .toolbar-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 10px 0;
+}
+
+.game-toolbar .map-details {
+  min-height: 0;
+}
+
+.game-toolbar .map-turn-flow {
+  position: static;
+  min-width: 0;
+  transform: none;
+  box-shadow: none;
+  margin-bottom: 8px;
+}
+
+.game-toolbar #resetMapButton {
+  position: static;
+}
+
+#gameView .map-headline {
+  left: 12px;
+  max-width: min(560px, calc(100% - 370px));
+  transform: none;
+  border-radius: 8px;
+  text-align: left;
+}
+
+#gameView:has(#gameToolbarContents.hidden) .map-headline {
+  max-width: min(560px, calc(100% - 170px));
+}
+
+@media (max-width: 600px) {
+  #gameView .map-headline {
+    top: auto;
+    bottom: 10px;
+    max-width: calc(100% - 24px);
+  }
+
+  .game-toolbar {
+    width: min(310px, 80%);
   }
 }

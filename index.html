@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Risk Variant Game</title>
-    <link rel="stylesheet" href="styles.css?v=20260909-gameplay-flow-1">
+    <link rel="stylesheet" href="styles.css?v=20261126-fullscreen-map-1">
   </head>
   <body>
     <header class="topbar">
@@ -154,10 +154,10 @@
               <span id="planningVisiblePlayerLabel" class="badge"></span>
             </div>
             <div class="map-layout player-map-layout">
-              <div class="map-shell" style="width: calc(100vw - 86px); max-width: none;">
+              <div class="map-shell">
                 <div id="planningMapHeadline" class="map-headline hidden"></div>
                 <svg id="planningPlayerMap" viewBox="0 0 1000 500" role="img" aria-label="Recruit player's visible countries on the world map" style="width: 100%;"></svg>
-                <aside id="planningMapDetails" class="map-details map-details-inset" style="position: absolute; top: 58px; right: 14px; z-index: 3; width: 280px; max-height: 300px; overflow: auto;">
+                <aside id="planningMapDetails" class="map-details">
                   <strong>Visible Map</strong>
                   <p>Select a country on the map to see the information this player is allowed to know.</p>
                 </aside>
@@ -225,12 +225,12 @@
               <select id="visiblePlayer" class="hidden"></select>
             </div>
             <div class="map-layout player-map-layout">
-              <div class="map-shell" style="width: calc(100vw - 86px); max-width: none;">
+              <div class="map-shell">
                 <div id="mapHeadline" class="map-headline hidden"></div>
                 <button id="resetMapButton" type="button" class="map-reset">Reset Map</button>
                 <button id="mapTurnFlowButton" type="button" class="map-turn-flow">Finished Attacking</button>
                 <svg id="playerMap" viewBox="0 0 1000 500" role="img" aria-label="Visible countries on the world map" style="width: 100%;"></svg>
-                <aside id="mapDetails" class="map-details map-details-inset" style="position: absolute; top: 14px; right: 14px; bottom: 14px; z-index: 3; width: 320px; max-height: none; overflow: auto;">
+                <aside id="mapDetails" class="map-details">
                   <strong>Visible Map</strong>
                   <p>Select a country on the map to see the information this player is allowed to know.</p>
                 </aside>
@@ -259,13 +259,23 @@
             <div id="manualContent" class="manual-content">Loading manual...</div>
           </div>
         </section>
-        <button id="openLogButton" type="button" class="log-dock">Log</button>
-        <button id="openManualButton" type="button" class="manual-dock">Manual</button>
+        <aside id="gameToolbar" class="game-toolbar" aria-label="Game toolbar">
+          <button id="toggleGameToolbar" type="button" aria-expanded="true" aria-controls="gameToolbarContents">Minimize toolbar</button>
+          <div id="gameToolbarContents" class="game-toolbar-contents">
+            <div id="gameToolbarHeader"></div>
+            <div id="gameToolbarActions" class="toolbar-actions">
+              <button id="openLogButton" type="button">Log</button>
+              <button id="openManualButton" type="button">Manual</button>
+            </div>
+            <div id="turnToolbar"></div>
+            <div id="planningToolbar" class="hidden"></div>
+          </div>
+        </aside>
       </section>
     </main>
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="supabase-config.js?v=20260531-online-save-1"></script>
-    <script src="app.js?v=20261009-capital-marker-spacing-1"></script>
+    <script src="app.js?v=20261126-fullscreen-map-1"></script>
   </body>
 </html>

@@ -2332,9 +2332,13 @@ function updateAttackDice() {
 }
 
 function applyMapView() {
-  $("playerMap").setAttribute("viewBox", "0 0 1000 500");
-  $("moderatorMap").setAttribute("viewBox", "0 0 1000 500");
-  if ($("planningPlayerMap")) $("planningPlayerMap").setAttribute("viewBox", "0 0 1000 500");
+  const aspect = $("gameView").clientWidth / $("gameView").clientHeight;
+  if (!Number.isFinite(aspect) || aspect <= 0) return;
+  const width = Math.max(500, 500 * aspect);
+  const height = Math.max(500, 500 / aspect);
+  const viewBox = `${500 - width / 2} ${250 - height / 2} ${width} ${height}`;
+  $("playerMap").setAttribute("viewBox", viewBox);
+  $("planningPlayerMap").setAttribute("viewBox", viewBox);
 }
 
 function appendOceanLayer(svg, view) {
@@ -2449,9 +2453,14 @@ function projectPointForView([lon, lat], view) {
   const cosPhi = Math.cos(phi);
   const visibility = Math.sin(phi0) * Math.sin(phi) + Math.cos(phi0) * cosPhi * Math.cos(lambda);
   if (visibility <= 0) return null;
+  const east = cosPhi * Math.sin(lambda);
+  const north = Math.cos(phi0) * Math.sin(phi) - Math.sin(phi0) * cosPhi * Math.cos(lambda);
+  const roll = view.roll || 0;
+  const cosRoll = Math.cos(roll);
+  const sinRoll = Math.sin(roll);
   return {
-    x: 500 + view.scale * cosPhi * Math.sin(lambda),
-    y: 250 - view.scale * (Math.cos(phi0) * Math.sin(phi) - Math.sin(phi0) * cosPhi * Math.cos(lambda)),
+    x: 500 + view.scale * (east * cosRoll + north * sinRoll),
+    y: 250 - view.scale * (north * cosRoll - east * sinRoll),
     visibility
   };
 }
@@ -2461,10 +2470,56 @@ function normalizeLongitude(lon) {
 }
 
 function mapCursorPoint(event, svg) {
-  const rect = svg.getBoundingClientRect();
+  return new DOMPoint(event.clientX, event.clientY).matrixTransform(svg.getScreenCTM().inverse());
+}
+
+function globeSurfacePoint(point, scale) {
+  const x = (point.x - 500) / scale;
+  const y = (250 - point.y) / scale;
+  const radius = Math.hypot(x, y);
+  if (radius >= 1) return [x / radius, y / radius, 0];
+  return [x, y, Math.sqrt(1 - radius * radius)];
+}
+
+function crossProduct([ax, ay, az], [bx, by, bz]) {
+  return [ay * bz - az * by, az * bx - ax * bz, ax * by - ay * bx];
+}
+
+function dotProduct(a, b) {
+  return a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
+}
+
+function rotateGlobeSurface(view, from, to) {
+  const axis = crossProduct(to, from);
+  const cosine = dotProduct(from, to);
+  if (cosine < -1 + 1e-9) return view;
+
+  const lon = degreesToRadians(view.lon);
+  const lat = degreesToRadians(view.lat);
+  const roll = view.roll || 0;
+  const east = [-Math.sin(lon), Math.cos(lon), 0];
+  const north = [-Math.sin(lat) * Math.cos(lon), -Math.sin(lat) * Math.sin(lon), Math.cos(lat)];
+  const center = crossProduct(east, north);
+  const right = east.map((value, i) => value * Math.cos(roll) + north[i] * Math.sin(roll));
+  const up = crossProduct(center, right);
+
+  // Rotate the camera basis by the inverse of the surface point's screen rotation.
+  const rotateBasis = (direction) => {
+    const first = crossProduct(axis, direction);
+    const second = crossProduct(axis, first);
+    const [x, y, z] = direction.map((value, i) => value + first[i] + second[i] / (1 + cosine));
+    return right.map((value, i) => x * value + y * up[i] + z * center[i]);
+  };
+  const newCenter = rotateBasis([0, 0, 1]);
+  const newRight = rotateBasis([1, 0, 0]);
+  const newLon = Math.atan2(newCenter[1], newCenter[0]);
+  const newLat = Math.atan2(newCenter[2], Math.hypot(newCenter[0], newCenter[1]));
+  const newEast = [-Math.sin(newLon), Math.cos(newLon), 0];
   return {
-    x: ((event.clientX - rect.left) / rect.width) * 1000,
-    y: ((event.clientY - rect.top) / rect.height) * 500
+    ...view,
+    lon: newLon * 180 / Math.PI,
+    lat: newLat * 180 / Math.PI,
+    roll: Math.atan2(dotProduct(newRight, crossProduct(newCenter, newEast)), dotProduct(newRight, newEast))
   };
 }
 
@@ -2775,7 +2830,7 @@ function boxesOverlap(a, b, padding = 9) {
   return !(a.right + padding < b.left || b.right + padding < a.left || a.bottom + padding < b.top || b.bottom + padding < a.top);
 }
 
-function chooseMapLabels(labelEntries) {
+function chooseMapLabels(labelEntries, bounds = { x: 0, y: 0, width: 1000, height: 500 }) {
   const placed = [];
   const sorted = labelEntries
     .map((entry) => ({ ...entry, candidates: entry.candidates.sort((a, b) => a.priority - b.priority || b.visibility - a.visibility) }))
@@ -2792,7 +2847,8 @@ function chooseMapLabels(labelEntries) {
       const lines = entry.lines.slice(0, count);
       for (const point of entry.candidates) {
         const box = labelBox(point, lines);
-        if (box.left < 2 || box.right > 998 || box.top < 2 || box.bottom > 498) continue;
+        if (box.left < bounds.x + 2 || box.right > bounds.x + bounds.width - 2
+          || box.top < bounds.y + 2 || box.bottom > bounds.y + bounds.height - 2) continue;
         if (placed.every((item) => !boxesOverlap(box, item.box))) {
           selected = { ...entry, point, lines, box };
           break;
@@ -3037,7 +3093,7 @@ function renderPlayerMapFor(player, { svgId, detailsId, unmappedId, labelId }) {
       }
     }
   }
-  for (const entry of chooseMapLabels([...labels.values()])) {
+  for (const entry of chooseMapLabels([...labels.values()], svg.viewBox.baseVal)) {
     appendCapabilityMarker(svg, entry);
     appendMapLabel(svg, entry, (countryName) => selectVisibleMapCountry(countryName, visible, playerId, svgId, detailsId));
   }
@@ -3222,7 +3278,7 @@ function canOpenTab(name) {
   if (!game) return false;
   if (name === "moderator") return false;
   if (name === "planning") return game.phase === "planning";
-  if (name === "turn") return game.phase !== "gameover";
+  if (name === "turn") return true;
   if (name === "manual") return true;
   return name === "log";
 }
@@ -3240,6 +3296,13 @@ function preferredOpenTab() {
 }
 
 function render() {
+  document.body.classList.toggle("playing-game", Boolean(game));
+  const header = document.querySelector(".topbar");
+  if (game && header.parentElement !== $("gameToolbarHeader")) {
+    $("gameToolbarHeader").appendChild(header);
+  } else if (!game && header.parentElement !== document.body) {
+    document.body.insertBefore(header, document.querySelector("main"));
+  }
   $("entryView").classList.toggle("hidden", Boolean(game) || setupMode);
   $("setupView").classList.toggle("hidden", Boolean(game) || !setupMode);
   $("gameView").classList.toggle("hidden", !game);
@@ -3273,8 +3336,7 @@ function render() {
   renderTurn();
   renderVisible();
   renderLog();
-  const activeTab = document.querySelector(".tab.active")?.dataset.tab;
-  showTab(canOpenTab(activeTab) ? activeTab : preferredOpenTab());
+  showTab(preferredOpenTab());
 }
 
 function showTab(name) {
@@ -3287,6 +3349,8 @@ function showTab(name) {
   document.querySelectorAll(".tab").forEach((button) => button.classList.toggle("active", button.dataset.tab === name));
   document.querySelectorAll(".tab-view").forEach((view) => view.classList.add("hidden"));
   $(`${name}Tab`).classList.remove("hidden");
+  $("planningToolbar").classList.toggle("hidden", name !== "planning");
+  $("turnToolbar").classList.toggle("hidden", name !== "turn");
   if (name === "turn") {
     $("visiblePlayer").dataset.followTurn = "true";
     selectedMapCountry = null;
@@ -3294,7 +3358,7 @@ function showTab(name) {
   }
 }
 
-function bindInteractivePlayerMap({ svgId, getPlayer, renderMap, detailsId, resetButtonId = null }) {
+function bindInteractivePlayerMap({ svgId, getPlayer, renderMap, detailsId }) {
   const svg = $(svgId);
   if (!svg) return;
   svg.addEventListener("click", (event) => {
@@ -3308,16 +3372,23 @@ function bindInteractivePlayerMap({ svgId, getPlayer, renderMap, detailsId, rese
 
   svg.addEventListener("wheel", (event) => {
     event.preventDefault();
+    if (!event.deltaY || mapDrag) return;
     const cursorPoint = mapCursorPoint(event, svg);
-    const cursorGeo = unprojectPointForView(cursorPoint, globeView);
     const zoomFactor = event.deltaY < 0 ? MAP_ZOOM_STEP : 1 / MAP_ZOOM_STEP;
-    globeView.scale = Math.min(PLAYER_MAP_MAX_SCALE, Math.max(MAP_MIN_SCALE, globeView.scale * zoomFactor));
-    nudgeViewToCursor(globeView, cursorGeo, cursorPoint);
+    const scale = Math.min(PLAYER_MAP_MAX_SCALE, Math.max(MAP_MIN_SCALE, globeView.scale * zoomFactor));
+    if (scale === globeView.scale) return;
+    const anchor = globeSurfacePoint(cursorPoint, globeView.scale);
+    globeView = { ...globeView, scale };
+    if (anchor[2] > 0) {
+      globeView = rotateGlobeSurface(globeView, anchor, globeSurfacePoint(cursorPoint, scale));
+    }
     renderMap();
   }, { passive: false });
 
   svg.addEventListener("pointerdown", (event) => {
-    if (event.button !== 0) return;
+    if (event.button !== 0 || mapDrag) return;
+    event.preventDefault();
+    suppressMapClick = false;
     const countryName = countryFromMapEvent(event, svg);
     mapDrag = {
       id: event.pointerId,
@@ -3325,6 +3396,7 @@ function bindInteractivePlayerMap({ svgId, getPlayer, renderMap, detailsId, rese
       startY: event.clientY,
       countryName,
       moved: false,
+      anchor: globeSurfacePoint(mapCursorPoint(event, svg), globeView.scale),
       view: { ...globeView }
     };
     svg.classList.add("panning");
@@ -3333,21 +3405,18 @@ function bindInteractivePlayerMap({ svgId, getPlayer, renderMap, detailsId, rese
 
   svg.addEventListener("pointermove", (event) => {
     if (!mapDrag || mapDrag.id !== event.pointerId) return;
-    const rect = svg.getBoundingClientRect();
     const pixelDx = event.clientX - mapDrag.startX;
     const pixelDy = event.clientY - mapDrag.startY;
-    if (Math.hypot(pixelDx, pixelDy) > 4) mapDrag.moved = true;
-    const dx = pixelDx / rect.width;
-    const dy = pixelDy / rect.height;
-    globeView.lon = ((((mapDrag.view.lon - dx * 105) + 180) % 360) + 360) % 360 - 180;
-    globeView.lat = Math.max(-80, Math.min(80, mapDrag.view.lat + dy * 52));
-    globeView.scale = mapDrag.view.scale;
+    if (!mapDrag.moved && Math.hypot(pixelDx, pixelDy) <= 4) return;
+    mapDrag.moved = true;
+    const surface = globeSurfacePoint(mapCursorPoint(event, svg), mapDrag.view.scale);
+    globeView = rotateGlobeSurface(mapDrag.view, mapDrag.anchor, surface);
     renderMap();
   });
 
   function endDrag(event) {
     if (!mapDrag || mapDrag.id !== event.pointerId) return;
-    if (mapDrag.countryName && !mapDrag.moved) {
+    if (event.type === "pointerup" && mapDrag.countryName && !mapDrag.moved) {
       selectCurrentVisibleCountry(mapDrag.countryName, getPlayer(), svgId, detailsId);
     }
     suppressMapClick = mapDrag.moved;
@@ -3357,16 +3426,35 @@ function bindInteractivePlayerMap({ svgId, getPlayer, renderMap, detailsId, rese
 
   svg.addEventListener("pointerup", endDrag);
   svg.addEventListener("pointercancel", endDrag);
-  if (resetButtonId) $(resetButtonId).addEventListener("click", resetMapView);
+  svg.addEventListener("lostpointercapture", endDrag);
+  svg.addEventListener("dragstart", (event) => event.preventDefault());
 }
 
 function bindMapControls() {
+  $("gameToolbarActions").prepend($("resetMapButton"));
+  $("turnToolbar").append($("mapTurnFlowButton"), $("mapDetails"), $("unmappedVisible"), $("regionProgress"));
+  $("planningToolbar").append($("planningMapDetails"), $("planningUnmappedVisible"), $("planningRegionProgress"));
+  $("toggleGameToolbar").addEventListener("click", (event) => {
+    const collapsed = $("gameToolbarContents").classList.toggle("hidden");
+    event.currentTarget.setAttribute("aria-expanded", String(!collapsed));
+    event.currentTarget.textContent = collapsed ? "Expand toolbar" : "Minimize toolbar";
+  });
+  $("resetMapButton").addEventListener("click", () => {
+    const planning = !$("planningTab").classList.contains("hidden");
+    resetMapView(false, planning ? planningMapPlayer() : visibleSessionPlayer());
+    if (planning) renderPlanningVisible();
+    else renderVisible();
+  });
+  new ResizeObserver(() => {
+    if (!game) return;
+    if (!$("planningTab").classList.contains("hidden")) renderPlanningVisible();
+    else if (!$("turnTab").classList.contains("hidden")) renderVisible();
+  }).observe($("gameView"));
   bindInteractivePlayerMap({
     svgId: "playerMap",
     getPlayer: visibleSessionPlayer,
     renderMap: renderVisible,
-    detailsId: "mapDetails",
-    resetButtonId: "resetMapButton"
+    detailsId: "mapDetails"
   });
   bindInteractivePlayerMap({
     svgId: "planningPlayerMap",
