@@ -607,7 +607,7 @@ function logMessage(entry) {
   const message = (typeof entry === "string" ? entry : entry?.message) || "";
   if (message === "Round 1 begins with action turns. Initial planning is skipped.") return "Round 1 begins.";
   // Older saves contain finished sentences rather than structured events.
-  return message
+  const formatted = message
     .replace(/^(.+)'s recruit plan resolves: (.+)\.$/, "$1 placed recruits ($2).")
     .replace(/^(.+) submits a recruit plan\.$/, "$1 finished choosing where to place recruits.")
     .replace(/^Round (\d+) action turns begin\.$/, "Recruit placement is complete. Turns resume in round $1.")
@@ -623,6 +623,15 @@ function logMessage(entry) {
       "$1 earned $2 recruits from country magnitude and $3 from region bonuses. The fraction carried to the next round is $5.")
     .replace(/^Round-end roll: 1\/(\d+)\. The round ends; round (\d+) begins\.$/, "Round $2 begins. The round ended on a roll of 1 out of $1.")
     .replace(/^Round-end roll: (\d+)\/(\d+)\. The round continues\.$/, "The round continues. The roll was $1 out of $2.");
+  if (!isSoloGame()) return formatted;
+  return formatted
+    .replace(/(^|\. )You (now controls|wins|is|targets|claims|attacks|conquers)\b/g, (_, prefix, verb) =>
+      `${prefix}You ${verb === "is" ? "are" : verb.slice(0, -1)}`)
+    .replace(/\b(now control all of [^.]+) and earns\b/, "$1 and earn")
+    .replace(/\bafter You's attack\b/g, "after your attack")
+    .replace(/\b(from|against) You\b/g, "$1 you")
+    .replace(/^(You started with nuclear country .+?) they earn\b/, "$1 you earn")
+    .replace(/^(You forfeited and gave up) their countries\. Their troops\b/, "$1 your countries. Your troops");
 }
 
 function canSeeLogEntry(entry) {
@@ -657,6 +666,14 @@ function isSoloGame() {
 
 function isComputerPlayer(playerId) {
   return game?.computerPlayerIds?.includes(playerId) ?? false;
+}
+
+function isSoloHuman(player) {
+  return Boolean(player && isSoloGame() && !isComputerPlayer(player.id));
+}
+
+function victoryText(player) {
+  return isSoloHuman(player) ? "You win" : `${player.name} wins`;
 }
 
 function startGame(names, computerPlayerIds = []) {
@@ -1826,11 +1843,12 @@ function concludeGameIfWon() {
     return true;
   }
   if (remaining.length === 1) {
-    recordTurnSnapshot(`Game over: ${remaining[0].name} wins`);
+    const result = victoryText(remaining[0]);
+    recordTurnSnapshot(`Game over: ${result}`);
     game.phase = "gameover";
     game.winnerId = remaining[0].id;
     game.pendingTransfers = [];
-    addLog(`${remaining[0].name} wins the game.`);
+    addLog(`${result} the game.`);
     return true;
   }
   return false;
@@ -1945,7 +1963,7 @@ function renderSummary() {
   $("statusLine").classList.toggle("recruit-alert", Boolean(game && game.phase === "planning" && self?.reserve > 0 && !playerHasSubmittedRecruitPlan(self.id)));
   $("statusLine").textContent = game
     ? winningPlayer
-      ? `Game over · ${winningPlayer.name} wins`
+      ? `Game over · ${victoryText(winningPlayer)}`
       : pendingNuclear && pendingNuclear.defenderId === self?.id
       ? `Nuclear retaliation decision pending for ${pendingNuclear.targetName}`
       : pendingNuclear
@@ -2338,17 +2356,15 @@ function renderTurn() {
   const canAct = playerSessionCanAct();
   const viewingPlayer = visibleSessionPlayer();
   $("turnTitle").textContent = winningPlayer
-    ? `${winningPlayer.name} Wins`
+    ? victoryText(winningPlayer)
     : pendingNuclear && pendingNuclear.defenderId === sessionPlayerId
-    ? `${pendingNuclearDefender?.name || "Player"}'s Nuclear Retaliation`
+    ? (isSoloHuman(pendingNuclearDefender) ? "Your Nuclear Retaliation" : `${pendingNuclearDefender?.name || "Player"}'s Nuclear Retaliation`)
     : pendingNuclear
     ? "Waiting on Nuclear Retaliation"
-    : game.phase === "planning"
-    ? `${viewingPlayer?.name || "Player"}'s Map`
-    : isPlayerSession() && !canAct
-    ? `${viewingPlayer?.name || "Player"}'s Map`
+    : game.phase === "planning" || (isPlayerSession() && !canAct)
+    ? (isSoloHuman(viewingPlayer) ? "Your Map" : `${viewingPlayer?.name || "Player"}'s Map`)
     : player
-    ? `${player.name}'s Turn`
+    ? (isSoloHuman(player) ? "Your Turn" : `${player.name}'s Turn`)
     : "Game Over";
   const roundEndNote = openingTurnsComplete(player?.id)
     ? `After this turn, the round ends on a 1 in ${activePlayers().length} roll.`
@@ -3359,7 +3375,8 @@ function renderTimelineMap() {
   game.timelineIndex = Math.max(0, Math.min(Number(game.timelineIndex || snapshots.length - 1), snapshots.length - 1));
   slider.value = String(game.timelineIndex);
   const snapshot = snapshots[game.timelineIndex];
-  $("timelineLabel").textContent = snapshot.label || `Snapshot ${game.timelineIndex + 1}`;
+  $("timelineLabel").textContent = (isSoloGame() && snapshot.label === "Game over: You wins" ? "Game over: You win" : snapshot.label)
+    || `Snapshot ${game.timelineIndex + 1}`;
 
   const svg = $("timelineMap");
   svg.setAttribute("viewBox", "0 0 1000 500");
