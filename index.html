@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Risk Variant Game</title>
-    <link rel="stylesheet" href="styles.css?v=game-id-note-1">
+    <link rel="stylesheet" href="styles.css?v=top-game-controls-1">
   </head>
   <body>
     <svg width="0" height="0" aria-hidden="true" style="position: absolute">
@@ -23,15 +23,6 @@
       <div>
         <h1>Risk Variant Game</h1>
         <p id="statusLine">Loading map data...</p>
-      </div>
-      <div class="top-actions">
-        <details id="headerGameIdBox" class="header-game-id hidden">
-          <summary class="map-tool-button" title="Show game ID">ID</summary>
-          <code id="activeOnlineGameId" class="game-id-note"></code>
-        </details>
-        <button id="refreshGameButton" type="button">Refresh</button>
-        <button id="forfeitButton" type="button" class="danger hidden">Forfeit</button>
-        <button id="mainMenuButton" type="button">Exit Game</button>
       </div>
     </header>
 
@@ -278,6 +269,15 @@
             <div id="manualContent" class="manual-content">Loading manual...</div>
           </div>
         </section>
+        <div class="map-game-controls" role="group" aria-label="Game controls">
+          <details id="headerGameIdBox" class="header-game-id hidden">
+            <summary class="map-tool-button" title="Show game ID">ID</summary>
+            <code id="activeOnlineGameId" class="game-id-note"></code>
+          </details>
+          <button id="refreshGameButton" class="map-tool-button" type="button">Refresh</button>
+          <button id="forfeitButton" class="map-tool-button danger hidden" type="button">Forfeit</button>
+          <button id="mainMenuButton" class="map-tool-button" type="button">Exit Game</button>
+        </div>
         <aside id="gameToolbar" class="game-toolbar" aria-label="Game toolbar">
           <button id="toggleGameToolbar" type="button" aria-expanded="true" aria-controls="gameToolbarContents">Minimize toolbar</button>
           <div id="gameToolbarContents" class="game-toolbar-contents">

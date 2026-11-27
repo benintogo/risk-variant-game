@@ -1013,12 +1013,22 @@ body.playing-game {
 }
 
 .map-navigation,
-.map-reference {
+.map-reference,
+.map-game-controls {
   position: absolute;
-  bottom: 12px;
   z-index: 10;
   display: flex;
   gap: 4px;
+}
+
+.map-navigation,
+.map-reference {
+  bottom: 12px;
+}
+
+.map-game-controls {
+  top: 12px;
+  left: 12px;
 }
 
 .map-navigation {
@@ -1072,8 +1082,7 @@ body.playing-game {
   display: none;
 }
 
-.game-toolbar #statusLine:empty,
-.game-toolbar .topbar > div:has(> #statusLine:empty) {
+.game-toolbar .topbar:has(#statusLine:empty) {
   display: none;
 }
 
@@ -1138,6 +1147,7 @@ body.playing-game {
 }
 
 #gameView .map-headline {
+  top: 60px;
   left: 12px;
   max-width: min(560px, calc(100% - 370px));
   transform: none;
@@ -1145,8 +1155,19 @@ body.playing-game {
   text-align: left;
 }
 
+#gameView:has(#headerGameIdBox[open]) .map-headline {
+  top: 112px;
+}
+
 #gameView:has(#gameToolbarContents.hidden) .map-headline {
   max-width: min(560px, calc(100% - 170px));
+}
+
+@media (max-width: 680px) {
+  .game-toolbar {
+    top: 60px;
+    max-height: calc(100% - 122px);
+  }
 }
 
 @media (max-width: 600px) {
@@ -1175,6 +1196,6 @@ body.playing-game {
 
   .game-toolbar {
     width: min(310px, 80%);
-    max-height: calc(100% - 112px);
+    max-height: calc(100% - 162px);
   }
 }
