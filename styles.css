@@ -595,6 +595,24 @@ form.map-action-panel {
   color: #111827;
 }
 
+.manual-content .manual-map-symbols {
+  list-style: none;
+  padding: 0;
+}
+
+.manual-map-symbols li {
+  display: grid;
+  grid-template-columns: 36px minmax(0, 1fr);
+  align-items: start;
+  gap: 10px;
+  margin: 8px 0;
+}
+
+.manual-map-symbols svg {
+  width: 36px;
+  height: 36px;
+}
+
 #playerMap,
 #planningPlayerMap,
 #moderatorMap,

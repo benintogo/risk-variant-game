@@ -4,7 +4,16 @@
 
   <h4>Find Your Way Around</h4>
   <p>Drag the globe to look around and scroll over it to zoom. Select a country or its label to see its details and available actions in the right toolbar. If the toolbar is closed, select <strong>Expand toolbar</strong>. Choose <strong>Reset Map</strong> to return to your strongest country. Open <strong>Log</strong> to review events and dice rolls you were able to see.</p>
-  <p>You can inspect the map between turns. You see ownership and troop counts in your own countries, their land and sea neighbors, and countries linked to yours by a network. Other countries in the same region show only their name and region. Select a country to check what you know about it. On an unowned country, <strong>Mag</strong> stands for magnitude, the country value used for claims, recruits, and nuclear retaliation.</p>
+  <p>You can inspect the map between turns. On an unowned country, <strong>Mag</strong> stands for magnitude, the country value used for claims, recruits, and nuclear retaliation.</p>
+
+  <h4>What You Can See</h4>
+  <p>Each player has their own view of the board. Select a country and look for the visibility label in the toolbar.</p>
+  <ul>
+    <li><strong>Full information.</strong> For countries marked <strong>Owned</strong>, <strong>Border or network</strong>, or <strong>Global</strong>, you can see the name, region, network (if any), magnitude, owner or unowned status, troop count, and whether it is a capital. Your own countries, their land and sea neighbors, and countries directly linked to yours by a network all give you full information.</li>
+    <li><strong>Partial information.</strong> A country marked <strong>Same region</strong> shares a region with one you own, but you have no closer connection to it. You see only its name and region. Its owner, troops, magnitude, network, and symbols stay hidden. It could belong to an opponent or be unowned.</li>
+    <li><strong>Hidden.</strong> Countries outside those connections and regions are left off your map. They can still be in play.</li>
+  </ul>
+  <p>Claim or conquer new countries to extend your view. Each one reveals its neighbors and network connections in full, and gives you partial information on any newly reached region. For full information worldwide, hold any one of the United States, China, Russia, India, or Japan, or hold Germany, Italy, and Czechia together. Your view can shrink when you lose a country that gave you visibility.</p>
 
   <h4>Take Your Turn</h4>
   <ol>
@@ -27,13 +36,14 @@
   <p>At the start of a new round, add up the magnitude of your countries and divide by 25. You receive whole recruits, and any fraction carries into the next round. Owning every country in a region earns bonus recruits. Check <strong>Region Progress</strong> in the toolbar to see how many countries remain and the bonus for completing each region. If you started with a nuclear country, your first region bonus recruits are withheld up to that country's starting magnitude.</p>
 
   <h4>Read the Map Symbols</h4>
-  <ul>
-    <li><strong>Capital:</strong> Your longest-held country is your capital. If you lose it, your next longest-held country takes over. A capital rolls one extra die in attack or defense and discards its lowest roll before comparison. It still needs at least two troops to attack.</li>
-    <li><strong>Satellite:</strong> Owning the United States, China, Russia, India, or Japan reveals the whole map. Owning Germany, Italy, and Czechia together does the same. If you own two of that trio and can see the third is unowned, the symbol marks the remaining country.</li>
-    <li><strong>Nuclear:</strong> Attacking or claiming this country can trigger retaliation.</li>
-    <li><strong>Missile:</strong> This nuclear country has ICBMs and can retaliate against visible opponents' countries beyond its usual attack range.</li>
+  <ul class="manual-map-symbols" role="list">
+    <li><svg class="capability-marker" data-map-symbol="capital" viewBox="-18 -18 36 36" aria-hidden="true"></svg><div><strong>Capital.</strong> Your longest-held country is your capital. If you lose it, your next longest-held country takes over. A capital rolls one extra die in attack or defense and discards its lowest roll before comparison. It still needs at least two troops to attack.</div></li>
+    <li><svg class="capability-marker" data-map-symbol="satellite" viewBox="-18 -18 36 36" aria-hidden="true"></svg><div><strong>Satellite.</strong> This marks a country that can help you unlock worldwide visibility. If you own two of Germany, Italy, and Czechia and can see the third is unowned, the symbol marks the remaining country.</div></li>
+    <li><svg class="capability-marker" data-map-symbol="nuclear" viewBox="-18 -18 36 36" aria-hidden="true"></svg><div><strong>Nuclear.</strong> Attacking or claiming this country can trigger retaliation.</div></li>
+    <li><svg class="capability-marker" data-map-symbol="missile" viewBox="-18 -18 36 36" aria-hidden="true"></svg><div><strong>Missile.</strong> This nuclear country has long-range missiles (ICBMs) and can retaliate against visible opponents' countries beyond its usual attack range.</div></li>
   </ul>
-  <p>Opponent capitals and the other symbols require full information. China, France, India, Israel, North Korea, Pakistan, Russia, the United Kingdom, and the United States are nuclear. All of those except Pakistan have ICBMs. Belarus becomes nuclear when its owner also holds Russia. Belgium, Germany, Italy, the Netherlands, and Turkey become nuclear when their owner also holds the United States.</p>
+  <p>Look for these symbols under country labels. A country with partial information shows no symbols, even if it has one of these abilities. When an ability depends on who owns another country, you also need enough information to confirm that ownership.</p>
+  <p>China, France, India, Israel, North Korea, Pakistan, Russia, the United Kingdom, and the United States are nuclear. All of those except Pakistan have ICBMs. Belarus becomes nuclear when its owner also holds Russia. Belgium, Germany, Italy, the Netherlands, and Turkey become nuclear when their owner also holds the United States.</p>
 
   <h4>Respond to Nuclear Retaliation</h4>
   <p>An unowned nuclear country retaliates automatically. If your nuclear country is attacked, play pauses for your decision. Select a target in the toolbar and choose <strong>Retaliate</strong>, or choose <strong>Do Not Retaliate</strong> to pass or stop. Each selection removes troops up to the remaining limit, which starts at the retaliating country's magnitude. A country that loses all its troops becomes unowned.</p>

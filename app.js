@@ -2973,6 +2973,13 @@ function appendMissileSymbol(parent) {
   appendSvgElement(angled, "path", { d: "M -2 9 L 0 17 L 2 9 Z" });
 }
 
+const MAP_SYMBOL_RENDERERS = new Map([
+  ["capital", appendCapitalSymbol],
+  ["nuclear", appendNuclearSymbol],
+  ["satellite", appendSatelliteSymbol],
+  ["missile", appendMissileSymbol]
+]);
+
 function appendCapabilityMarker(svg, entry) {
   const point = entry.point;
   if (!point || !entry.markers?.length) return;
@@ -2989,10 +2996,7 @@ function appendCapabilityMarker(svg, entry) {
       class: `capability-marker-icon capability-marker-${marker}`,
       transform: `translate(${(startX + index * spacing).toFixed(2)} 0) scale(0.72)`
     });
-    if (marker === "capital") appendCapitalSymbol(icon);
-    if (marker === "nuclear") appendNuclearSymbol(icon);
-    if (marker === "satellite") appendSatelliteSymbol(icon);
-    if (marker === "missile") appendMissileSymbol(icon);
+    MAP_SYMBOL_RENDERERS.get(marker)(icon);
   });
 }
 
@@ -3281,13 +3285,16 @@ async function loadManualContent() {
   const target = $("manualContent");
   if (!target || target.dataset.loaded === "true") return;
   if (!manualLoadPromise) {
-    manualLoadPromise = fetch("PLAYER_MANUAL.html?v=player-guide-2").then((response) => {
+    manualLoadPromise = fetch("PLAYER_MANUAL.html?v=player-guide-3").then((response) => {
       if (!response.ok) throw new Error("Manual could not be loaded.");
       return response.text();
     });
   }
   try {
     target.innerHTML = await manualLoadPromise;
+    for (const symbol of target.querySelectorAll("svg[data-map-symbol]")) {
+      MAP_SYMBOL_RENDERERS.get(symbol.dataset.mapSymbol)?.(symbol);
+    }
     target.dataset.loaded = "true";
   } catch {
     manualLoadPromise = null;
