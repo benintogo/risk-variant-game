@@ -168,7 +168,8 @@ const MAP_LABEL_POINTS = {
   Portugal: [-8.1, 39.6],
   Russia: [37.6, 55.8],
   "Russian Federation": [37.6, 55.8],
-  "Saint Helena": [-5.72, -15.95]
+  "Saint Helena": [-5.72, -15.95],
+  "South Africa": [21.4, -30.3]
 };
 
 const PLAYER_COLORS = [
