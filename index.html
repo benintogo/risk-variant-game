@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Risk Variant Game</title>
-    <link rel="stylesheet" href="styles.css?v=map-navigation-1">
+    <link rel="stylesheet" href="styles.css?v=map-toolbar-2">
   </head>
   <body>
     <svg width="0" height="0" aria-hidden="true" style="position: absolute">
@@ -25,17 +25,17 @@
         <p id="statusLine">Loading map data...</p>
       </div>
       <div class="top-actions">
-        <div id="headerGameIdBox" class="header-game-id hidden">
-          <label>
-            Game ID
-            <input id="activeOnlineGameId" type="text" readonly>
-          </label>
-          <button id="copyOnlineGameIdButton" type="button">Copy</button>
-        </div>
+        <details id="headerGameIdBox" class="header-game-id hidden">
+          <summary class="map-tool-button" title="Show game ID">ID</summary>
+          <div class="game-id-value">
+            <label>Game ID <input id="activeOnlineGameId" type="text" readonly></label>
+            <button id="copyOnlineGameIdButton" type="button">Copy</button>
+          </div>
+        </details>
         <button id="refreshGameButton" type="button">Refresh</button>
         <button id="saveButton" type="button">Save</button>
         <button id="forfeitButton" type="button" class="danger hidden">Forfeit</button>
-        <button id="mainMenuButton" type="button">Main Menu</button>
+        <button id="mainMenuButton" type="button">Exit Game</button>
       </div>
     </header>
 
@@ -251,8 +251,7 @@
                     <ul role="list"></ul>
                   </section>
                 </div>
-                <button id="resetMapButton" type="button" class="map-reset">Reset Map</button>
-                <button id="mapTurnFlowButton" type="button" class="map-turn-flow">Finished Attacking</button>
+                <button id="mapTurnFlowButton" type="button" class="map-turn-flow primary">Finished Attacking</button>
                 <svg id="playerMap" viewBox="0 0 1000 500" role="img" aria-label="Visible countries on the world map" style="width: 100%;"></svg>
                 <aside id="mapDetails" class="map-details">
                   <strong>Visible Map</strong>
@@ -287,15 +286,16 @@
           <button id="toggleGameToolbar" type="button" aria-expanded="true" aria-controls="gameToolbarContents">Minimize toolbar</button>
           <div id="gameToolbarContents" class="game-toolbar-contents">
             <div id="gameToolbarHeader"></div>
-            <div id="gameToolbarActions" class="toolbar-actions">
-              <button id="openLogButton" type="button">Log</button>
-              <button id="openManualButton" type="button">Manual</button>
-            </div>
             <div id="turnToolbar"></div>
             <div id="planningToolbar" class="hidden"></div>
           </div>
         </aside>
+        <div class="map-reference" role="group" aria-label="Game reference">
+          <button id="openLogButton" class="map-tool-button" type="button">Log</button>
+          <button id="openManualButton" class="map-tool-button" type="button">Manual</button>
+        </div>
         <div id="mapNavigation" class="map-navigation" role="group" aria-label="Map navigation">
+          <button id="resetMapButton" class="map-tool-button" type="button" title="Reset map view">Reset</button>
           <button type="button" data-map-action="north" aria-label="Orient north up" title="Orient north up">&#8593;N</button>
           <button type="button" data-map-action="zoom-out" aria-label="Zoom out" title="Zoom out">&#8722;</button>
           <button type="button" data-map-action="zoom-in" aria-label="Zoom in" title="Zoom in">+</button>
@@ -305,6 +305,6 @@
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="supabase-config.js?v=20260531-online-save-1"></script>
-    <script src="app.js?v=player-guide-4"></script>
+    <script src="app.js?v=map-toolbar-2"></script>
   </body>
 </html>

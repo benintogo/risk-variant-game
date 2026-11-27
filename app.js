@@ -1662,11 +1662,11 @@ function nuclearRetaliationPanelHtml(pending) {
         </label>
         <div class="nuclear-retaliation-actions">
           <button type="button" class="primary" data-nuclear-action="strike">Retaliate</button>
-          <button type="button" data-nuclear-action="decline">Do Not Retaliate</button>
+          <button type="button" class="primary" data-nuclear-action="decline">Do Not Retaliate</button>
         </div>
       ` : `
         <p>No legal retaliation targets remain.</p>
-        <button type="button" data-nuclear-action="decline">Continue</button>
+        <button type="button" class="primary" data-nuclear-action="decline">Continue</button>
       `}
     </section>
   `;
@@ -1893,7 +1893,7 @@ function renderSummary() {
         : "Waiting for recruit placement to finish."
       : game.phase === "planning"
       ? `Recruit placement is underway · ${playersAwaitingRecruitPlans().length} player${playersAwaitingRecruitPlans().length === 1 ? "" : "s"} still placing`
-      : `Round ${game.round} · ${player?.id === self?.id ? "Your turn" : `${player?.name || "Another player"}'s turn`}`
+      : player?.id === self?.id ? "" : `Waiting for ${player?.name || "another player"}`
     : `${countries.length} countries loaded`;
   $("summaryGrid").innerHTML = active.map((p) => {
     const owned = ownedCountries(p.id);
@@ -2184,13 +2184,7 @@ function renderMapTurnFlowButton() {
   const show = game?.phase === "turn" && !pendingNuclearDecision() && playerSessionCanAct() && !winner();
   button.classList.toggle("hidden", !show);
   if (!show) return;
-  if (game.turnStage === "transfer") {
-    button.textContent = "End Turn";
-    button.classList.add("primary");
-  } else {
-    button.textContent = "Finished Attacking";
-    button.classList.remove("primary");
-  }
+  button.textContent = game.turnStage === "transfer" ? "End Turn" : "Finished Attacking";
 }
 
 function regionProgressFor(playerId) {
@@ -2802,7 +2796,7 @@ function contextualActionHtml(country, playerId, detailsId) {
             <input name="move" type="number" min="1" value="1">
           </label>
           <button type="submit" class="primary">Attack</button>
-          <button type="button" data-context-button="attack-end-state">Attack to End State</button>
+          <button type="button" class="primary" data-context-button="attack-end-state">Attack to End State</button>
         </form>
       ` : ""}
     </div>
@@ -3334,7 +3328,7 @@ async function loadManualContent() {
   const target = $("manualContent");
   if (!target || target.dataset.loaded === "true") return;
   if (!manualLoadPromise) {
-    manualLoadPromise = fetch("PLAYER_MANUAL.html?v=player-guide-4").then((response) => {
+    manualLoadPromise = fetch("PLAYER_MANUAL.html?v=player-guide-5").then((response) => {
       if (!response.ok) throw new Error("Manual could not be loaded.");
       return response.text();
     });
@@ -3383,7 +3377,9 @@ function render() {
   $("entryView").classList.toggle("hidden", Boolean(game) || setupMode);
   $("setupView").classList.toggle("hidden", Boolean(game) || !setupMode);
   $("gameView").classList.toggle("hidden", !game);
-  $("headerGameIdBox").classList.toggle("hidden", !game || !onlineGameId);
+  const gameIdBox = $("headerGameIdBox");
+  gameIdBox.classList.toggle("hidden", !game || !onlineGameId);
+  if (!game || !onlineGameId) gameIdBox.open = false;
   $("forfeitButton").classList.toggle("hidden", !game || !sessionPlayer() || sessionPlayer()?.eliminated || game.phase === "gameover");
   rememberOnlineGameId(onlineGameId);
   if (!game) {
@@ -3512,7 +3508,6 @@ function bindInteractivePlayerMap({ svgId, getPlayer, renderMap, detailsId }) {
 }
 
 function bindMapControls() {
-  $("gameToolbarActions").prepend($("resetMapButton"));
   $("turnToolbar").prepend($("mapTurnFlowButton"));
   $("turnToolbar").append($("mapDetails"), $("unmappedVisible"), $("regionProgress"));
   $("planningToolbar").append($("planningMapDetails"), $("planningUnmappedVisible"), $("planningRegionProgress"));
@@ -4034,7 +4029,7 @@ function bindEvents() {
     }
   });
   $("mainMenuButton").addEventListener("click", () => {
-    if (game && !confirm("Return to the main menu? Your online game will not be deleted.")) return;
+    if (game && !confirm("Exit this game? You can rejoin an online game with its Game ID.")) return;
     stopOnlineRefresh();
     game = null;
     setupMode = false;
