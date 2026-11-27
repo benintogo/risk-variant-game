@@ -681,7 +681,17 @@ form.map-action-panel {
 }
 
 .map-legend {
-  margin-bottom: 10px;
+  position: absolute;
+  bottom: 12px;
+  left: 12px;
+  z-index: 5;
+  max-width: min(320px, calc(100% - 24px));
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel);
+  pointer-events: none;
+  overflow-wrap: anywhere;
   font-size: 13px;
 }
 
@@ -1092,10 +1102,22 @@ body.playing-game {
 }
 
 @media (max-width: 600px) {
-  #gameView .map-headline {
-    top: auto;
-    bottom: 10px;
-    max-width: calc(100% - 24px);
+  .map-corner {
+    position: absolute;
+    bottom: 12px;
+    left: 12px;
+    right: 12px;
+    z-index: 5;
+    display: grid;
+    justify-items: start;
+    gap: 6px;
+    pointer-events: none;
+  }
+
+  .map-corner .map-legend,
+  #gameView .map-corner .map-headline {
+    position: static;
+    max-width: min(320px, 100%);
   }
 
   .game-toolbar {

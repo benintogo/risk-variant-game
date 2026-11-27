@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Risk Variant Game</title>
-    <link rel="stylesheet" href="styles.css?v=globe-wheel-1">
+    <link rel="stylesheet" href="styles.css?v=map-legend-corner-1">
   </head>
   <body>
     <svg width="0" height="0" aria-hidden="true" style="position: absolute">
@@ -167,7 +167,13 @@
             </div>
             <div class="map-layout player-map-layout">
               <div class="map-shell">
-                <div id="planningMapHeadline" class="map-headline hidden"></div>
+                <div class="map-corner">
+                  <div id="planningMapHeadline" class="map-headline hidden"></div>
+                  <section id="planningMapLegend" class="map-legend" hidden>
+                    <h3>Map Legend</h3>
+                    <ul role="list"></ul>
+                  </section>
+                </div>
                 <svg id="planningPlayerMap" viewBox="0 0 1000 500" role="img" aria-label="Recruit player's visible countries on the world map" style="width: 100%;"></svg>
                 <aside id="planningMapDetails" class="map-details">
                   <strong>Visible Map</strong>
@@ -238,7 +244,13 @@
             </div>
             <div class="map-layout player-map-layout">
               <div class="map-shell">
-                <div id="mapHeadline" class="map-headline hidden"></div>
+                <div class="map-corner">
+                  <div id="mapHeadline" class="map-headline hidden"></div>
+                  <section id="mapLegend" class="map-legend" hidden>
+                    <h3>Map Legend</h3>
+                    <ul role="list"></ul>
+                  </section>
+                </div>
                 <button id="resetMapButton" type="button" class="map-reset">Reset Map</button>
                 <button id="mapTurnFlowButton" type="button" class="map-turn-flow">Finished Attacking</button>
                 <svg id="playerMap" viewBox="0 0 1000 500" role="img" aria-label="Visible countries on the world map" style="width: 100%;"></svg>
@@ -279,18 +291,8 @@
               <button id="openLogButton" type="button">Log</button>
               <button id="openManualButton" type="button">Manual</button>
             </div>
-            <div id="turnToolbar">
-              <section id="mapLegend" class="map-legend" hidden>
-                <h3>Map Legend</h3>
-                <ul role="list"></ul>
-              </section>
-            </div>
-            <div id="planningToolbar" class="hidden">
-              <section id="planningMapLegend" class="map-legend" hidden>
-                <h3>Map Legend</h3>
-                <ul role="list"></ul>
-              </section>
-            </div>
+            <div id="turnToolbar"></div>
+            <div id="planningToolbar" class="hidden"></div>
           </div>
         </aside>
       </section>
