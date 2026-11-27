@@ -1872,7 +1872,6 @@ function renderSetupNames() {
 
 function renderSummary() {
   const active = activePlayers();
-  const player = currentPlayer();
   const self = sessionPlayer();
   const winningPlayer = winner();
   const pendingNuclear = pendingNuclearDecision();
@@ -1894,7 +1893,7 @@ function renderSummary() {
         : "Waiting for recruit placement to finish."
       : game.phase === "planning"
       ? `Recruit placement is underway · ${playersAwaitingRecruitPlans().length} player${playersAwaitingRecruitPlans().length === 1 ? "" : "s"} still placing`
-      : player?.id === self?.id ? "" : `Waiting for ${player?.name || "another player"}`
+      : ""
     : `${countries.length} countries loaded`;
   $("summaryGrid").innerHTML = active.map((p) => {
     const owned = ownedCountries(p.id);
@@ -2248,11 +2247,11 @@ function renderMapHeadlineFor(player, elementId) {
   const element = $(elementId);
   if (!element) return;
   let message = logMessage(latestVisibleLogEntryFor(player?.id));
-  if (message === "Round 1 begins.") {
-    const active = currentPlayer();
-    if (active?.id !== player?.id) {
-      message = `${active?.name || "Another player"} goes first. Select countries to inspect them, or open Manual to learn how to play.`;
-    } else if (game.turnStage === "transfer") {
+  const active = game.phase === "turn" ? currentPlayer() : null;
+  if (active && player && active.id !== player.id && !pendingNuclearDecision()) {
+    message = `Waiting for ${active.name}`;
+  } else if (message === "Round 1 begins." && active?.id === player?.id) {
+    if (game.turnStage === "transfer") {
       message = "Select one of your countries to transfer troops, or choose End Turn.";
     } else {
       message = "Select one of your countries to claim nearby land or attack. Open Manual for the rules.";
