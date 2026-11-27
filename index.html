@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Risk Variant Game</title>
-    <link rel="stylesheet" href="styles.css?v=map-toolbar-2">
+    <link rel="stylesheet" href="styles.css?v=game-id-note-1">
   </head>
   <body>
     <svg width="0" height="0" aria-hidden="true" style="position: absolute">
@@ -27,10 +27,7 @@
       <div class="top-actions">
         <details id="headerGameIdBox" class="header-game-id hidden">
           <summary class="map-tool-button" title="Show game ID">ID</summary>
-          <div class="game-id-value">
-            <label>Game ID <input id="activeOnlineGameId" type="text" readonly></label>
-            <button id="copyOnlineGameIdButton" type="button">Copy</button>
-          </div>
+          <code id="activeOnlineGameId" class="game-id-note"></code>
         </details>
         <button id="refreshGameButton" type="button">Refresh</button>
         <button id="saveButton" type="button">Save</button>
@@ -305,6 +302,6 @@
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="supabase-config.js?v=20260531-online-save-1"></script>
-    <script src="app.js?v=map-toolbar-2"></script>
+    <script src="app.js?v=game-id-note-1"></script>
   </body>
 </html>

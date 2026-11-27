@@ -793,7 +793,7 @@ function rememberOnlineGameId(id) {
   if (onlineGameId) localStorage.setItem(ONLINE_GAME_ID_KEY, onlineGameId);
   else localStorage.removeItem(ONLINE_GAME_ID_KEY);
   if ($("onlineGameId")) $("onlineGameId").value = onlineGameId;
-  if ($("activeOnlineGameId")) $("activeOnlineGameId").value = onlineGameId;
+  if ($("activeOnlineGameId")) $("activeOnlineGameId").textContent = onlineGameId;
 }
 
 function gameStateText(state = game) {
@@ -4016,18 +4016,6 @@ function bindEvents() {
   });
   $("forfeitButton").addEventListener("click", forfeitCurrentSessionPlayer);
   $("loadOnlineGameButton").addEventListener("click", () => loadOnlineGame());
-  $("copyOnlineGameIdButton").addEventListener("click", async () => {
-    if (!onlineGameId) {
-      alert("There is no online Game ID yet.");
-      return;
-    }
-    try {
-      await navigator.clipboard.writeText(onlineGameId);
-      setOnlineStatus("Game ID copied.");
-    } catch {
-      alert(`Game ID: ${onlineGameId}`);
-    }
-  });
   $("mainMenuButton").addEventListener("click", () => {
     if (game && !confirm("Exit this game? You can rejoin an online game with its Game ID.")) return;
     stopOnlineRefresh();

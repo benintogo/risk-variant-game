@@ -98,21 +98,7 @@ main {
 }
 
 .header-game-id {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.header-game-id label {
-  width: 250px;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.header-game-id input {
-  min-height: 34px;
-  font-size: 12px;
+  position: relative;
 }
 
 .tabs {
@@ -1091,14 +1077,6 @@ body.playing-game {
   display: none;
 }
 
-.game-toolbar .header-game-id {
-  max-width: 100%;
-}
-
-.game-toolbar .header-game-id[open] {
-  flex-basis: 100%;
-}
-
 .header-game-id summary {
   display: inline-grid;
   place-items: center;
@@ -1113,29 +1091,25 @@ body.playing-game {
   display: none;
 }
 
-.game-id-value {
-  display: flex;
-  align-items: end;
-  gap: 6px;
-  margin-top: 6px;
+.game-id-note {
+  position: absolute;
+  z-index: 2;
+  top: calc(100% + 6px);
+  left: 0;
+  width: max-content;
+  max-width: min(220px, calc(80vw - 44px));
+  padding: 8px 10px;
+  border-radius: 4px;
+  background: #000;
+  color: #fff;
+  box-shadow: 0 2px 8px #0004;
+  overflow-wrap: anywhere;
+  -webkit-user-select: all;
+  user-select: all;
 }
 
-.header-game-id:not([open]) .game-id-value {
+.header-game-id:not([open]) .game-id-note {
   display: none;
-}
-
-.game-id-value label {
-  flex: 1;
-}
-
-.game-toolbar .header-game-id label,
-.game-toolbar .header-game-id input {
-  min-width: 0;
-}
-
-.game-toolbar .header-game-id label {
-  display: grid;
-  gap: 4px;
 }
 
 #gameView svg.panning * {
