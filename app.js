@@ -4002,15 +4002,6 @@ function bindEvents() {
     await createOnlineGame();
     render();
   });
-  $("saveButton").addEventListener("click", () => {
-    saveGame();
-    if (onlineGameId) {
-      saveOnlineGame();
-      alert("Game saved locally and online.");
-    } else {
-      alert("Game saved in this browser.");
-    }
-  });
   $("refreshGameButton").addEventListener("click", async () => {
     await refreshOnlineGame({ forceRender: true });
   });
