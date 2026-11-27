@@ -587,8 +587,16 @@ function addPrivateLog(message, playerIds) {
 }
 
 function logText(entry) {
-  if (typeof entry === "string") return entry;
-  return `${entry.time} - ${entry.message}`;
+  const message = logMessage(entry);
+  if (message === "Round 1 begins." || typeof entry === "string") return message;
+  return `${entry.time} - ${message}`;
+}
+
+function logMessage(entry) {
+  const message = typeof entry === "string" ? entry : entry?.message;
+  return message === "Round 1 begins with action turns. Initial planning is skipped."
+    ? "Round 1 begins."
+    : message || "";
 }
 
 function canSeeLogEntry(entry) {
@@ -647,7 +655,7 @@ function startGame(names) {
   game.turnStage = "attack";
   game.turnHadAction = false;
   game.consecutivePasses = [];
-  addLog("Round 1 begins with action turns. Initial planning is skipped.");
+  addLog("Round 1 begins.");
   recordTurnSnapshot("Initial setup");
   resetMapView(false);
   saveGame();
@@ -1204,7 +1212,6 @@ function startNewRound(reason) {
     game.phase = "turn";
     game.planningPlayerId = null;
     game.turnStage = "attack";
-    addLog(`No recruits are available for round ${game.round}; recruit placement is skipped.`);
     showTab("turn");
   }
 }
@@ -1869,6 +1876,9 @@ function renderSummary() {
   const winningPlayer = winner();
   const pendingNuclear = pendingNuclearDecision();
   const pendingNuclearDefender = pendingNuclear ? game.players.find((candidate) => candidate.id === pendingNuclear.defenderId) : null;
+  const recruitsLeft = game.phase === "planning" && self
+    ? Math.max(0, self.reserve - recruitDraftTotal(loadRecruitDraft(self.id)))
+    : 0;
   $("statusLine").classList.toggle("recruit-alert", Boolean(game && game.phase === "planning" && self?.reserve > 0 && !playerHasSubmittedRecruitPlan(self.id)));
   $("statusLine").textContent = game
     ? winningPlayer
@@ -1878,12 +1888,12 @@ function renderSummary() {
       : pendingNuclear
       ? `Waiting on nuclear retaliation from ${pendingNuclearDefender?.name || "another player"}`
       : game.phase === "planning" && self?.reserve > 0 && !playerHasSubmittedRecruitPlan(self.id)
-      ? `Place your ${self.reserve} recruit${self.reserve === 1 ? "" : "s"} now · click one of your countries on the map`
-      : game.phase === "planning" && self?.reserve > 0
-      ? "Recruit plan submitted · waiting for the other players"
+      ? recruitsLeft > 0
+        ? `Select one of your countries to place recruits. ${recruitsLeft} left.`
+        : "Waiting for recruit placement to finish."
       : game.phase === "planning"
       ? `Recruit placement is underway · ${playersAwaitingRecruitPlans().length} player${playersAwaitingRecruitPlans().length === 1 ? "" : "s"} still placing`
-      : `Player view · ${sessionPlayer()?.name || "Unknown player"} · Round ${game.round} · ${game.phase === "planning" ? "planning phase" : `${player?.name || "No one"}'s turn`}`
+      : `Round ${game.round} · ${player?.id === self?.id ? "Your turn" : `${player?.name || "Another player"}'s turn`}`
     : `${countries.length} countries loaded`;
   $("summaryGrid").innerHTML = active.map((p) => {
     const owned = ownedCountries(p.id);
@@ -2242,9 +2252,19 @@ function renderRegionProgress(player, elementId) {
 function renderMapHeadlineFor(player, elementId) {
   const element = $(elementId);
   if (!element) return;
-  const entry = latestVisibleLogEntryFor(player?.id);
-  element.classList.toggle("hidden", !entry);
-  element.textContent = entry ? logText(entry) : "";
+  let message = logMessage(latestVisibleLogEntryFor(player?.id));
+  if (message === "Round 1 begins.") {
+    const active = currentPlayer();
+    if (active?.id !== player?.id) {
+      message = `${active?.name || "Another player"} goes first. Select countries to inspect them, or open Manual to learn how to play.`;
+    } else if (game.turnStage === "transfer") {
+      message = "Select one of your countries to transfer troops, or choose End Turn.";
+    } else {
+      message = "Select one of your countries to claim nearby land or attack. Open Manual for the rules.";
+    }
+  }
+  element.classList.toggle("hidden", !message);
+  element.textContent = message;
 }
 
 function renderTurn() {
@@ -3261,7 +3281,7 @@ async function loadManualContent() {
   const target = $("manualContent");
   if (!target || target.dataset.loaded === "true") return;
   if (!manualLoadPromise) {
-    manualLoadPromise = fetch("PLAYER_MANUAL.html").then((response) => {
+    manualLoadPromise = fetch("PLAYER_MANUAL.html?v=player-guide-2").then((response) => {
       if (!response.ok) throw new Error("Manual could not be loaded.");
       return response.text();
     });
@@ -3270,6 +3290,7 @@ async function loadManualContent() {
     target.innerHTML = await manualLoadPromise;
     target.dataset.loaded = "true";
   } catch {
+    manualLoadPromise = null;
     target.textContent = "The player guide could not be loaded.";
   }
 }
