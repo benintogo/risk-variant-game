@@ -3435,6 +3435,17 @@ function showTab(name) {
   }
 }
 
+function zoomPlayerMap(factor, cursorPoint = null) {
+  const scale = Math.min(PLAYER_MAP_MAX_SCALE, Math.max(MAP_MIN_SCALE, globeView.scale * factor));
+  if (scale === globeView.scale) return false;
+  const anchor = cursorPoint && globeSurfacePoint(cursorPoint, globeView.scale);
+  globeView = { ...globeView, scale };
+  if (anchor && anchor[2] > 0) {
+    globeView = rotateGlobeSurface(globeView, anchor, globeSurfacePoint(cursorPoint, scale));
+  }
+  return true;
+}
+
 function bindInteractivePlayerMap({ svgId, getPlayer, renderMap, detailsId }) {
   const svg = $(svgId);
   if (!svg) return;
@@ -3452,14 +3463,7 @@ function bindInteractivePlayerMap({ svgId, getPlayer, renderMap, detailsId }) {
     if (!event.deltaY || mapDrag) return;
     const cursorPoint = mapCursorPoint(event, svg);
     const zoomFactor = event.deltaY < 0 ? MAP_ZOOM_STEP : 1 / MAP_ZOOM_STEP;
-    const scale = Math.min(PLAYER_MAP_MAX_SCALE, Math.max(MAP_MIN_SCALE, globeView.scale * zoomFactor));
-    if (scale === globeView.scale) return;
-    const anchor = globeSurfacePoint(cursorPoint, globeView.scale);
-    globeView = { ...globeView, scale };
-    if (anchor[2] > 0) {
-      globeView = rotateGlobeSurface(globeView, anchor, globeSurfacePoint(cursorPoint, scale));
-    }
-    renderMap();
+    if (zoomPlayerMap(zoomFactor, cursorPoint)) renderMap();
   }, { passive: false });
 
   svg.addEventListener("pointerdown", (event) => {
@@ -3523,11 +3527,23 @@ function bindMapControls() {
     if (planning) renderPlanningVisible();
     else renderVisible();
   });
-  new ResizeObserver(() => {
+  const renderOpenMap = () => {
     if (!game) return;
     if (!$("planningTab").classList.contains("hidden")) renderPlanningVisible();
     else if (!$("turnTab").classList.contains("hidden")) renderVisible();
-  }).observe($("gameView"));
+  };
+  $("mapNavigation").addEventListener("click", (event) => {
+    const action = event.target.closest("button")?.dataset.mapAction;
+    if (!game || mapDrag || !action) return;
+    if (action === "north") {
+      if (!globeView.roll) return;
+      globeView.roll = 0;
+    } else if (!zoomPlayerMap(action === "zoom-in" ? MAP_ZOOM_STEP : 1 / MAP_ZOOM_STEP)) {
+      return;
+    }
+    renderOpenMap();
+  });
+  new ResizeObserver(renderOpenMap).observe($("gameView"));
   bindInteractivePlayerMap({
     svgId: "playerMap",
     getPlayer: visibleSessionPlayer,

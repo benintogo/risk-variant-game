@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Risk Variant Game</title>
-    <link rel="stylesheet" href="styles.css?v=map-legend-corner-1">
+    <link rel="stylesheet" href="styles.css?v=map-navigation-1">
   </head>
   <body>
     <svg width="0" height="0" aria-hidden="true" style="position: absolute">
@@ -295,11 +295,16 @@
             <div id="planningToolbar" class="hidden"></div>
           </div>
         </aside>
+        <div id="mapNavigation" class="map-navigation" role="group" aria-label="Map navigation">
+          <button type="button" data-map-action="north" aria-label="Orient north up" title="Orient north up">&#8593;N</button>
+          <button type="button" data-map-action="zoom-out" aria-label="Zoom out" title="Zoom out">&#8722;</button>
+          <button type="button" data-map-action="zoom-in" aria-label="Zoom in" title="Zoom in">+</button>
+        </div>
       </section>
     </main>
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="supabase-config.js?v=20260531-online-save-1"></script>
-    <script src="app.js?v=transparent-satellite-1"></script>
+    <script src="app.js?v=map-navigation-1"></script>
   </body>
 </html>
