@@ -1,6 +1,7 @@
 const DATA_URL = "data/risk-places.csv";
 const MAP_URL = "data/world-map.json?v=20261007-prince-edward-split-1";
 const SAVE_KEY = "risk-variant-moderator-v1";
+const SOLO_SAVE_KEY = "risk-variant-single-player";
 const ONLINE_GAME_ID_KEY = "risk-variant-online-game-id";
 const SESSION_ROLE_KEY = "risk-variant-session-role";
 const SESSION_PLAYER_KEY = "risk-variant-session-player-id";
@@ -647,9 +648,13 @@ function shuffled(items) {
   return copy;
 }
 
-function startGame(names) {
+function startGame(names, computerPlayerId = null) {
   localMapSelections.clear();
   game = blankState();
+  if (computerPlayerId) {
+    game.computerPlayerId = computerPlayerId;
+    game.soloSaveId = `solo-${Date.now()}`;
+  }
   game.players = names.map((name, index) => ({
     id: `p${index + 1}`,
     name,
@@ -692,11 +697,12 @@ function saveGame() {
 }
 
 function saveLocalGame() {
-  if (game) localStorage.setItem(SAVE_KEY, JSON.stringify(game));
+  if (game) localStorage.setItem(game.computerPlayerId ? SOLO_SAVE_KEY : SAVE_KEY, JSON.stringify(game));
 }
 
 function recruitDraftKey(playerId = sessionPlayerId) {
-  return `${RECRUIT_DRAFT_KEY_PREFIX}-${onlineGameId || "local"}-${game?.round || 0}-${playerId || "unknown"}`;
+  const mode = game?.soloSaveId || onlineGameId || "local";
+  return `${RECRUIT_DRAFT_KEY_PREFIX}-${mode}-${game?.round || 0}-${playerId || "unknown"}`;
 }
 
 function loadRecruitDraft(playerId = sessionPlayerId) {
@@ -1740,10 +1746,10 @@ function completePendingNuclearDecision(pending, declined = false) {
   render();
 }
 
-function applyNuclearRetaliationChoice(id, targetName) {
+function applyNuclearRetaliationChoice(id, targetName, playerId = sessionPlayerId) {
   const pending = (game.pendingNuclearRetaliations || []).find((item) => item.id === id);
   if (!pending) return;
-  if (pending.defenderId !== sessionPlayerId && sessionRole === "player") return;
+  if (pending.defenderId !== playerId) return;
   const chosen = currentNuclearRetaliationOptions(pending).find((country) => country.name === targetName);
   if (!chosen) {
     alert("That retaliation target is no longer available.");
@@ -1770,10 +1776,10 @@ function applyNuclearRetaliationChoice(id, targetName) {
   render();
 }
 
-function declinePendingNuclearDecision(id) {
+function declinePendingNuclearDecision(id, playerId = sessionPlayerId) {
   const pending = (game.pendingNuclearRetaliations || []).find((item) => item.id === id);
   if (!pending) return;
-  if (pending.defenderId !== sessionPlayerId && sessionRole === "player") return;
+  if (pending.defenderId !== playerId) return;
   completePendingNuclearDecision(pending, true);
 }
 
@@ -1797,6 +1803,13 @@ function resolveSharedStagingUnclaimedTroops() {
 function concludeGameIfWon() {
   if (game.phase === "gameover") return true;
   const remaining = activePlayers();
+  if (game.computerPlayerId && pendingNuclearDecision()) return false;
+  if (game.computerPlayerId && !remaining.length) {
+    recordTurnSnapshot("Game over: draw");
+    game.phase = "gameover";
+    addLog("The game ends in a draw. Neither player has any countries left.");
+    return true;
+  }
   if (remaining.length === 1) {
     recordTurnSnapshot(`Game over: ${remaining[0].name} wins`);
     game.phase = "gameover";
@@ -2132,7 +2145,11 @@ async function submitRecruitPlan() {
     render();
     return;
   }
-  applyRecruitPlanToBoard(player.id, validation.placements);
+  if (game.computerPlayerId) {
+    game.recruitPlans[player.id] = { submitted: true, placements: validation.placements, round: game.round };
+  } else {
+    applyRecruitPlanToBoard(player.id, validation.placements);
+  }
   clearRecruitDraft(player.id);
   addPrivateLog(`${player.name} finished choosing where to place recruits.`, [player.id]);
   if (allRecruitsPlaced()) {
@@ -2771,7 +2788,7 @@ function contextualActionHtml(country, playerId, detailsId) {
   const isOwnCountry = owner === playerId;
   if (game.phase === "planning") {
     const player = sessionPlayer();
-    if (!player || player.id !== playerId || !isOwnCountry || player.reserve <= 0) return "";
+    if (!player || player.id !== playerId || !isOwnCountry || playerHasSubmittedRecruitPlan(playerId)) return "";
     const remaining = Math.max(0, player.reserve - recruitDraftTotal(loadRecruitDraft(player.id)));
     if (remaining <= 0) return "";
     return `
@@ -3056,11 +3073,13 @@ function moderatorDetailHtml(country) {
 }
 
 function mapSelectionKey(playerId) {
-  return `${MAP_SELECTION_KEY_PREFIX}-${onlineGameId.toUpperCase()}-${playerId}`;
+  return `${MAP_SELECTION_KEY_PREFIX}-${game.soloSaveId || onlineGameId.toUpperCase()}-${playerId}`;
 }
 
 function selectedVisibleMapEntry(playerId, visible) {
-  const lastSelected = onlineGameId ? localStorage.getItem(mapSelectionKey(playerId)) : localMapSelections.get(playerId);
+  const lastSelected = onlineGameId || game.soloSaveId
+    ? localStorage.getItem(mapSelectionKey(playerId))
+    : localMapSelections.get(playerId);
   return visible.get(lastSelected)
     || visible.get(capitalCountryFor(playerId)?.name)
     || visible.values().next().value;
@@ -3083,7 +3102,7 @@ function renderSelectedMapEntry(entry, playerId, svgId, detailsId) {
 function selectVisibleMapCountry(countryName, visible, playerId, svgId = "playerMap", detailsId = "mapDetails") {
   const entry = visible.get(countryName);
   if (!entry) return;
-  if (onlineGameId) localStorage.setItem(mapSelectionKey(playerId), countryName);
+  if (onlineGameId || game.soloSaveId) localStorage.setItem(mapSelectionKey(playerId), countryName);
   else localMapSelections.set(playerId, countryName);
   renderSelectedMapEntry(entry, playerId, svgId, detailsId);
 }
@@ -3421,14 +3440,20 @@ function render() {
     document.body.insertBefore(header, document.querySelector("main"));
   }
   $("entryView").classList.toggle("hidden", Boolean(game) || setupMode);
+  $("singlePlayerEntry").classList.toggle("hidden", Boolean(game) || setupMode);
   $("setupView").classList.toggle("hidden", Boolean(game) || !setupMode);
   $("gameView").classList.toggle("hidden", !game);
+  $("resumeSinglePlayerButton").classList.toggle("hidden", !localStorage.getItem(SOLO_SAVE_KEY));
+  $("refreshGameButton").classList.toggle("hidden", Boolean(game?.computerPlayerId));
   const gameIdBox = $("headerGameIdBox");
   gameIdBox.classList.toggle("hidden", !game || !onlineGameId);
   if (!game || !onlineGameId) gameIdBox.open = false;
   $("forfeitButton").classList.toggle("hidden", !game || !sessionPlayer() || sessionPlayer()?.eliminated || game.phase === "gameover");
   rememberOnlineGameId(onlineGameId);
   if (!game) {
+    clearTimeout(computerMoveTimer);
+    $("logTab").classList.add("hidden");
+    $("manualTab").classList.add("hidden");
     $("statusLine").textContent = setupMode ? "Set up a new online game" : "Create or load an online game";
     return;
   }
@@ -3454,7 +3479,10 @@ function render() {
   renderTurn();
   renderVisible();
   renderLog();
+  const openOverlays = ["logTab", "manualTab"].filter((id) => !$(id).classList.contains("hidden"));
   showTab(preferredOpenTab());
+  for (const id of openOverlays) $(id).classList.remove("hidden");
+  scheduleComputerMove();
 }
 
 function showTab(name) {
@@ -3740,17 +3768,10 @@ function resolveEndOfTurnTransfers() {
   return true;
 }
 
-function handleAttack(event) {
-  event.preventDefault();
-  if (game.phase === "gameover") {
-    alert("The game is over.");
-    return;
-  }
+function attackCountry(from, target, attackDice, requestedMove) {
+  if (game?.phase !== "turn" || pendingNuclearDecision() || game.turnStage !== "attack") return;
   const attacker = currentPlayer();
-  const from = $("attackFrom").value;
-  const target = $("attackTo").value;
-  const attackDice = Number($("attackDice").value);
-  if (!attacker || !from || !target || !attackDice) return;
+  if (!attacker || game.ownership[from] !== attacker.id || !target || !attackDice) return;
   const option = viableAttackOptionsFor(from).find((item) => item.target === target);
   const maxAttackDice = option ? attackKeptDiceMaxFor(from, option.maxDice) : 0;
   if (!option || attackDice < 1 || attackDice > maxAttackDice) {
@@ -3758,7 +3779,7 @@ function handleAttack(event) {
     return;
   }
   if (option?.limited) {
-    handleLimitedAttack(attacker, from, target, option);
+    handleLimitedAttack(attacker, from, target, option, requestedMove);
     return;
   }
   markTurnAction();
@@ -3781,8 +3802,7 @@ function handleAttack(event) {
   addPrivateLog(`${attacker.name} attacked ${target} from ${from}. ${rolls} ${losses}`, [attacker.id, defenderId]);
   let conquered = false;
   if (countryTroops(target) <= 0 && game.ownership[from] === attacker.id && countryTroops(from) > 1) {
-    const requestedMove = Number($("conquestMove").value || attackDice);
-    const move = Math.max(1, Math.min(requestedMove, countryTroops(from) - 1));
+    const move = Math.max(1, Math.min(requestedMove || attackDice, countryTroops(from) - 1));
     setCountryOwner(target, attacker.id);
     game.troops[target] = move;
     game.troops[from] -= move;
@@ -3809,19 +3829,19 @@ function handleAttack(event) {
   render();
 }
 
-function handleLimitedAttack(attacker, from, target, option = null) {
+function handleLimitedAttack(attacker, from, target, option, requestedMove) {
   const defenderId = game.ownership[target];
   const targetCountry = countryByName.get(target);
   const targetIsNuclear = isNuclearPower(target, defenderId);
   if (!defenderId) {
     const minimumMove = Math.max(1, targetCountry.magnitude);
-    const requestedMove = Number($("conquestMove").value || minimumMove);
+    requestedMove ||= minimumMove;
     const movable = countryTroops(from) - 1;
     if (requestedMove > movable) {
-      alert("The starting country does not have enough movable troops.");
+      if (attacker.id !== game.computerPlayerId) alert("The starting country does not have enough movable troops.");
       addPrivateLog(`${attacker.name} attacked ${target} from ${from}. There were too few troops available to move.`, [attacker.id]);
     } else if (requestedMove < minimumMove) {
-      alert("Move on conquest is not high enough.");
+      if (attacker.id !== game.computerPlayerId) alert("Move on conquest is not high enough.");
       addPrivateLog(`${attacker.name} attacked ${target} from ${from}. The chosen troop move was too small.`, [attacker.id]);
     } else {
       markTurnAction();
@@ -3866,8 +3886,7 @@ function handleLimitedAttack(attacker, from, target, option = null) {
   if (defenderLoss > 0) {
     game.troops[target] -= defenderLoss;
     if (countryTroops(target) <= 0 && game.ownership[from] === attacker.id && countryTroops(from) > 1) {
-      const requestedMove = Number($("conquestMove").value || 1);
-      const move = Math.max(1, Math.min(requestedMove, countryTroops(from) - 1));
+      const move = Math.max(1, Math.min(requestedMove || 1, countryTroops(from) - 1));
       setCountryOwner(target, attacker.id);
       game.troops[target] = move;
       game.troops[from] -= move;
@@ -3952,6 +3971,7 @@ function prepareAttackForm(from, target) {
 }
 
 function attackToEndState(from, target) {
+  if (!playerSessionCanAct() || game.turnStage !== "attack") return;
   if (game.phase === "gameover") {
     alert("The game is over.");
     return;
@@ -3968,7 +3988,7 @@ function attackToEndState(from, target) {
     if (maxDice < 1) break;
     $("attackDice").value = String(maxDice);
     $("conquestMove").value = String(Math.max(1, countryTroops(from) - 1));
-    handleAttack({ preventDefault() {} });
+    attackCountry(from, target, maxDice, movableTroops(from));
     attacks += 1;
   }
   if (attacks >= 250) addPrivateLog(`${attacker.name} reached the 250-attack limit for Attack to End State.`, [attacker.id, game.ownership[target]]);
@@ -4016,7 +4036,255 @@ function submitContextAction(form) {
   }
 }
 
+function transferTroops(from, to, amount) {
+  if (game?.phase !== "turn" || pendingNuclearDecision() || game.turnStage !== "transfer") return;
+  const player = currentPlayer();
+  const playerId = player?.id;
+  const maxTransfer = isSharedStaging(from) ? sharedStagingTroops(from, playerId) : movableTroops(from);
+  if (!playerId || !from || !to || from === to || (!isSharedStaging(from) && game.ownership[from] !== playerId) || !Number.isInteger(amount) || amount < 1 || amount > maxTransfer || !hasOwnedTransferPath(playerId, from, to)) {
+    alert("That transfer is not available.");
+    return;
+  }
+  markTurnAction();
+  if (isSharedStaging(from)) {
+    const config = sharedStagingConfig(from);
+    game[config.troopsKey][playerId] = sharedStagingTroops(from, playerId) - amount;
+    game.troops[to] = countryTroops(to) + amount;
+  } else if (isSharedStaging(to)) {
+    const config = sharedStagingConfig(to);
+    game.troops[from] -= amount;
+    game[config.troopsKey][playerId] = sharedStagingTroops(to, playerId) + amount;
+  } else {
+    game.troops[from] -= amount;
+    game.troops[to] = countryTroops(to) + amount;
+  }
+  addPrivateLog(`${player.name} transferred ${troopCount(amount)} from ${from} to ${to}.`, [player.id]);
+  resolveSharedStagingUnclaimedTroops();
+  saveGame();
+  render();
+}
+
+function claimCountry(from, target, amount) {
+  if (game?.phase !== "turn" || pendingNuclearDecision() || game.turnStage !== "attack") return;
+  const player = currentPlayer();
+  const targetIsNuclear = isNuclearPower(target, game.ownership[target]);
+  const min = Math.max(1, countryByName.get(target)?.magnitude || 0);
+  if (!player || game.ownership[from] !== player.id || !claimOptionsFor(from).includes(target) || !Number.isInteger(amount) || amount < min || amount > movableTroops(from)) {
+    alert(`Claim requires at least ${min} troops and must leave 1 behind.`);
+    return;
+  }
+  markTurnAction();
+  game.troops[from] -= amount;
+  setCountryOwner(target, player.id);
+  game.troops[target] = amount;
+  addPrivateLog(`${player.name} claimed ${target} from ${from} with ${troopCount(amount)}.`, [player.id]);
+  announceNewRegionControls(player.id);
+  if (targetIsNuclear) {
+    applyNuclearRetaliation({
+      targetName: target,
+      actorId: player.id,
+      excludeCountry: target,
+      action: "claims"
+    });
+    checkEliminations();
+  }
+  refreshRegionControlAnnouncements();
+  saveGame();
+  render();
+}
+
+function finishTurn() {
+  if (game?.phase !== "turn" || pendingNuclearDecision()) return;
+  if (!resolveEndOfTurnTransfers()) return;
+  const endingPlayer = currentPlayer();
+  const automaticRound = endingPlayer ? turnPassTriggersNewRound(endingPlayer.id) : false;
+  const remaining = activePlayers().length;
+  if (remaining <= 1) {
+    concludeGameIfWon();
+    saveGame();
+    render();
+    return;
+  }
+  if (endingPlayer) recordTurnSnapshot(`After ${endingPlayer.name}'s turn in round ${game.round}`, endingPlayer.id);
+  advanceTurn();
+  game.turnStage = "attack";
+  delete game.computerProbedOrigins;
+  lastRenderedTurnPlayerId = currentPlayer()?.id || "";
+  game.turnHadAction = false;
+  if (automaticRound) {
+    startNewRound("All remaining players passed in succession.");
+  } else if (openingTurnsComplete(endingPlayer?.id)) {
+    const roll = Math.floor(Math.random() * remaining) + 1;
+    if (roll === 1) {
+      startNewRoundAfterRoll(remaining);
+    } else {
+      addLog(`The round continues. The roll was ${roll} out of ${remaining}.`);
+    }
+  }
+  if (game.phase === "turn") resetMapView(false);
+  saveGame();
+  render();
+}
+
+function nextComputerAction() {
+  const player = game?.players.find(({ id }) => id === game.computerPlayerId);
+  if (!player || game.phase === "gameover") return null;
+  const pending = pendingNuclearDecision();
+  if (pending) {
+    if (pending.defenderId !== player.id) return null;
+    return () => {
+      const targets = currentNuclearRetaliationOptions(pending);
+      const target = targets.sort((a, b) =>
+        Math.min(countryTroops(b.name), pending.remaining) - Math.min(countryTroops(a.name), pending.remaining)
+      )[0];
+      if (target) applyNuclearRetaliationChoice(pending.id, target.name, player.id);
+      else declinePendingNuclearDecision(pending.id, player.id);
+    };
+  }
+  if (player.eliminated) return null;
+  if (game.phase === "planning") {
+    return player.reserve > 0 && !playerHasSubmittedRecruitPlan(player.id)
+      ? () => playComputerStep(player)
+      : null;
+  }
+  return game.phase === "turn" && currentPlayer()?.id === player.id
+    ? () => playComputerStep(player)
+    : null;
+}
+
+let computerMoveTimer = null;
+
+function scheduleComputerMove() {
+  clearTimeout(computerMoveTimer);
+  const action = nextComputerAction();
+  if (action) computerMoveTimer = setTimeout(action, 240);
+}
+
+function playComputerStep(player) {
+  const owned = ownedCountries(player.id);
+  const intel = new Map(visibleCountriesFor(player.id).filter(({ visibility }) => visibility !== "Same region")
+    .map(({ country }) => [country.name, {
+      owner: game.ownership[country.name],
+      troops: countryTroops(country.name),
+      nuclear: visibleNuclearMarkerFor(country.name, player.id, "Border or network")
+    }]));
+  const frontierScore = (country) => [...new Set([...country.land, ...country.maritime])]
+    .reduce((score, name) => {
+      const info = intel.get(name);
+      if (!info || info.owner === player.id) return score;
+      return score + (info.owner ? 2 : 3) + Math.min(2, info.troops / 4);
+    }, 0);
+  const ranked = owned.map((country) => ({ country, frontier: frontierScore(country) }))
+    .sort((a, b) => b.frontier - a.frontier || countryTroops(b.country.name) - countryTroops(a.country.name));
+
+  if (game.phase === "planning") {
+    const destination = ranked[0]?.country.name;
+    if (destination) {
+      game.recruitPlans[player.id] = {
+        submitted: true,
+        placements: { [destination]: player.reserve },
+        round: game.round
+      };
+    }
+    saveGame();
+    render();
+    return;
+  }
+
+  if (game.turnStage === "transfer") {
+    for (const { country: destination, frontier } of ranked) {
+      if (!frontier) break;
+      const origin = [...ranked].reverse().find(({ country, frontier: originFrontier }) =>
+        originFrontier < frontier && movableTroops(country.name) > 0
+        && hasOwnedTransferPath(player.id, country.name, destination.name));
+      if (!origin) continue;
+      const from = origin.country.name;
+      transferTroops(from, destination.name, Math.max(1, movableTroops(from) - (origin.frontier > 0 ? 2 : 0)));
+      break;
+    }
+    finishTurn();
+    return;
+  }
+
+  const regionProgress = new Map(regionProgressFor(player.id).map((row) => [row.region, row]));
+  const valueOf = (country) => {
+    const region = regionProgress.get(country.region);
+    return country.magnitude / 2 + (region ? region.bonus / Math.max(1, region.remainingCount) : 0);
+  };
+  let best = null;
+  const consider = (score, run) => {
+    if (!best || best.score < score) best = { score, run };
+  };
+  for (const { country } of ranked) {
+    const from = country.name;
+    const movable = movableTroops(from);
+    if (!movable) continue;
+    for (const target of claimOptionsFor(from)) {
+      const place = countryByName.get(target);
+      if (!place || !intel.has(target)) continue;
+      const minimum = Math.max(1, place.magnitude);
+      if (intel.get(target).nuclear && movable - minimum < place.magnitude + 2) continue;
+      const amount = Math.min(movable, Math.max(minimum, Math.ceil(movable / 2)));
+      consider(12 + valueOf(place) - minimum / 2, () => claimCountry(from, target, amount));
+    }
+    for (const option of viableAttackOptionsFor(from)) {
+      const target = option.target;
+      const info = intel.get(target);
+      const place = countryByName.get(target);
+      const dice = attackKeptDiceMaxFor(from, option.maxDice);
+      if (!place || !dice) continue;
+      if (!info) {
+        // Regional attacks can test unknown territory without reading its owner or troops.
+        if (movable >= 9 && !game.computerProbedOrigins?.includes(from)) {
+          consider(1, () => {
+            (game.computerProbedOrigins ||= []).push(from);
+            attackCountry(from, target, dice, movable);
+          });
+        }
+        continue;
+      }
+      if (!info.owner || (info.nuclear && movable < info.troops + place.magnitude + 4)) continue;
+      const advantage = movable - info.troops * (dice === 1 ? 2.1 : dice === 2 ? 1.6 : 1.15);
+      if (advantage < (info.troops === 1 ? 0 : 2)) continue;
+      consider(8 + valueOf(place) + Math.min(advantage, 10) / 2 - (info.nuclear ? 5 : 0),
+        () => attackCountry(from, target, dice, Math.max(1, Math.ceil(movable * 0.7))));
+    }
+  }
+  if (best) {
+    best.run();
+  } else {
+    game.turnStage = "transfer";
+    saveGame();
+    render();
+  }
+}
+
 function bindEvents() {
+  $("newSinglePlayerButton").addEventListener("click", () => {
+    if (localStorage.getItem(SOLO_SAVE_KEY) && !confirm("Replace your saved single-player game?")) return;
+    stopOnlineRefresh();
+    rememberOnlineGameId("");
+    setSession("player", "p1");
+    startGame(["You", "Computer"], "p2");
+  });
+  $("resumeSinglePlayerButton").addEventListener("click", () => {
+    let saved;
+    try {
+      saved = JSON.parse(localStorage.getItem(SOLO_SAVE_KEY));
+    } catch {
+      alert("Your single-player save could not be opened.");
+      return;
+    }
+    if (!saved?.computerPlayerId) return;
+    stopOnlineRefresh();
+    rememberOnlineGameId("");
+    setSession("player", "p1");
+    game = saved;
+    normalizeLoadedGame();
+    lastRenderedTurnPlayerId = currentPlayer()?.id || "";
+    resetMapView(false);
+    render();
+  });
   $("makeNamesButton").addEventListener("click", renderSetupNames);
   $("playerCount").addEventListener("change", renderSetupNames);
   $("showNewGameButton").addEventListener("click", () => {
@@ -4049,7 +4317,9 @@ function bindEvents() {
   $("forfeitButton").addEventListener("click", forfeitCurrentSessionPlayer);
   $("loadOnlineGameButton").addEventListener("click", () => loadOnlineGame());
   $("mainMenuButton").addEventListener("click", () => {
-    if (game && !confirm("Exit this game? You can rejoin an online game with its Game ID.")) return;
+    if (game && !confirm(game.computerPlayerId
+      ? "Exit to the menu? You can resume this single-player game in this browser."
+      : "Exit this game? You can rejoin an online game with its Game ID.")) return;
     stopOnlineRefresh();
     game = null;
     setupMode = false;
@@ -4153,37 +4423,13 @@ function bindEvents() {
   $("submitRecruitPlanButton").addEventListener("click", () => submitRecruitPlan());
   $("transferForm").addEventListener("submit", (event) => {
     event.preventDefault();
-    const player = currentPlayer();
-    const playerId = player?.id;
-    const from = $("transferFrom").value;
-    const to = $("transferTo").value;
-    const amount = Number($("transferAmount").value);
-    const maxTransfer = isSharedStaging(from) ? sharedStagingTroops(from, playerId) : movableTroops(from);
-    if (!playerId || !from || !to || amount < 1 || amount > maxTransfer || !hasOwnedTransferPath(playerId, from, to)) {
-      alert("That transfer is not available.");
-      return;
-    }
-    markTurnAction();
-    if (isSharedStaging(from)) {
-      const config = sharedStagingConfig(from);
-      game[config.troopsKey][playerId] = sharedStagingTroops(from, playerId) - amount;
-      game.troops[to] = countryTroops(to) + amount;
-    } else if (isSharedStaging(to)) {
-      const config = sharedStagingConfig(to);
-      game.troops[from] -= amount;
-      game[config.troopsKey][playerId] = sharedStagingTroops(to, playerId) + amount;
-    } else {
-      game.troops[from] -= amount;
-      game.troops[to] = countryTroops(to) + amount;
-    }
-    addPrivateLog(`${player.name} transferred ${troopCount(amount)} from ${from} to ${to}.`, [player.id]);
-    resolveSharedStagingUnclaimedTroops();
+    if (!playerSessionCanAct()) return;
     $("transferAmount").dataset.userEdited = "false";
-    saveGame();
-    render();
+    transferTroops($("transferFrom").value, $("transferTo").value, Number($("transferAmount").value));
   });
   if ($("resolvePlanningButton")) $("resolvePlanningButton").addEventListener("click", resolvePlanning);
   $("finishAttackButton").addEventListener("click", () => {
+    if (!playerSessionCanAct()) return;
     game.turnStage = "transfer";
     render();
   });
@@ -4193,70 +4439,17 @@ function bindEvents() {
   });
   $("claimForm").addEventListener("submit", (event) => {
     event.preventDefault();
-    if (game.phase === "gameover") {
-      alert("The game is over.");
-      return;
-    }
-    const player = currentPlayer();
-    const from = $("claimFrom").value;
-    const target = $("claimTo").value;
-    const amount = Number($("claimAmount").value);
-    const targetIsNuclear = isNuclearPower(target, game.ownership[target]);
-    const min = Math.max(1, countryByName.get(target)?.magnitude || 0);
-    if (!player || !from || !target || amount < min || countryTroops(from) - amount < 1 || game.ownership[target]) {
-      alert(`Claim requires at least ${min} troops and must leave 1 behind.`);
-      return;
-    }
-    markTurnAction();
-    game.troops[from] -= amount;
-    setCountryOwner(target, player.id);
-    game.troops[target] = amount;
-    addPrivateLog(`${player.name} claimed ${target} from ${from} with ${troopCount(amount)}.`, [player.id]);
-    announceNewRegionControls(player.id);
-    if (targetIsNuclear) {
-      applyNuclearRetaliation({
-        targetName: target,
-        actorId: player.id,
-        excludeCountry: target,
-        action: "claims"
-      });
-      checkEliminations();
-    }
-    refreshRegionControlAnnouncements();
-    saveGame();
-    render();
+    if (!playerSessionCanAct()) return;
+    claimCountry($("claimFrom").value, $("claimTo").value, Number($("claimAmount").value));
   });
-  $("attackForm").addEventListener("submit", handleAttack);
+  $("attackForm").addEventListener("submit", (event) => {
+    event.preventDefault();
+    if (!playerSessionCanAct()) return;
+    attackCountry($("attackFrom").value, $("attackTo").value, Number($("attackDice").value), Number($("conquestMove").value));
+  });
   $("endTurnButton").addEventListener("click", () => {
-    if (game.phase === "gameover") return;
-    if (!resolveEndOfTurnTransfers()) return;
-    const endingPlayer = currentPlayer();
-    const automaticRound = endingPlayer ? turnPassTriggersNewRound(endingPlayer.id) : false;
-    const remaining = activePlayers().length;
-    if (remaining <= 1) {
-      concludeGameIfWon();
-      saveGame();
-      render();
-      return;
-    }
-    if (endingPlayer) recordTurnSnapshot(`After ${endingPlayer.name}'s turn in round ${game.round}`, endingPlayer.id);
-    advanceTurn();
-    game.turnStage = "attack";
-    lastRenderedTurnPlayerId = currentPlayer()?.id || "";
-    game.turnHadAction = false;
-    if (automaticRound) {
-      startNewRound("All remaining players passed in succession.");
-    } else if (openingTurnsComplete(endingPlayer?.id)) {
-      const roll = Math.floor(Math.random() * remaining) + 1;
-      if (roll === 1) {
-        startNewRoundAfterRoll(remaining);
-      } else {
-        addLog(`The round continues. The roll was ${roll} out of ${remaining}.`);
-      }
-    }
-    if (game.phase === "turn") resetMapView(false);
-    saveGame();
-    render();
+    if (!playerSessionCanAct()) return;
+    finishTurn();
   });
   $("timelineSlider").addEventListener("input", () => {
     if (!game) return;
