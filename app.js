@@ -2270,12 +2270,12 @@ function renderMapHeadlineFor(player, elementId) {
   if (!element) return;
   let message = logMessage(latestVisibleLogEntryFor(player?.id));
   const active = game.phase === "turn" ? currentPlayer() : null;
-  if (active && player && active.id !== player.id && !pendingNuclearDecision()) {
-    message = `Waiting for ${active.name}`;
-  } else if (message === "Round 1 begins." && active?.id === player?.id) {
-    if (game.turnStage === "transfer") {
-      message = "Select one of your countries to transfer troops, or choose End Turn.";
-    } else {
+  if (active && player && !pendingNuclearDecision()) {
+    if (active.id !== player.id) {
+      message = `Waiting for ${active.name}`;
+    } else if (game.turnStage === "transfer") {
+      message = "You can now transfer troops. Select one of your countries, or choose End Turn when done.";
+    } else if (message === "Round 1 begins.") {
       message = "Select one of your countries to claim nearby land or attack. Open Manual for the rules.";
     }
   }
