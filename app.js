@@ -3064,13 +3064,58 @@ function selectCurrentVisibleCountry(countryName, player = currentPlayer(), svgI
   selectVisibleMapCountry(countryName, visible, playerId, svgId, detailsId);
 }
 
-function renderPlayerMapFor(player, { svgId, detailsId, unmappedId, labelId }) {
+function renderMapLegend(elementId, mapped, visible, viewerId) {
+  const legend = $(elementId);
+  const list = legend.querySelector("ul");
+  list.replaceChildren();
+  const owners = new Set();
+  let partial = false;
+  let unowned = false;
+  let staging = false;
+
+  for (const name of mapped) {
+    const { visibility } = visible.get(name);
+    if (isSharedStaging(name)) {
+      staging = true;
+    } else if (visibility === "Same region") {
+      partial = true;
+    } else {
+      const owner = game.ownership[name];
+      if (owner) owners.add(owner);
+      else unowned = true;
+    }
+  }
+
+  const addRow = (label, mapClass, color) => {
+    const row = document.createElement("li");
+    const swatch = appendSvgElement(row, "svg", { viewBox: "0 0 16 16", "aria-hidden": "true" });
+    const square = appendSvgElement(swatch, "rect", { width: 16, height: 16, class: mapClass });
+    if (color) square.style.fill = color;
+    row.appendChild(document.createTextNode(label));
+    list.appendChild(row);
+  };
+
+  if (partial) addRow("Partially visible", "map-region");
+  if (unowned || staging) {
+    const label = unowned && staging ? "Fully visible, unowned or shared staging"
+      : unowned ? "Fully visible, unowned" : "Shared staging";
+    addRow(label, "map-unowned");
+  }
+  for (const owner of owners) {
+    const isViewer = owner === viewerId;
+    addRow(`${playerName(owner)}${isViewer ? " (you)" : ""}`, isViewer ? "map-owned" : "map-known", playerColor(owner));
+  }
+  legend.hidden = list.childElementCount === 0;
+}
+
+function renderPlayerMapFor(player, { svgId, detailsId, unmappedId, labelId, legendId }) {
   if (labelId) $(labelId).textContent = player ? player.name : "No active player";
   const playerId = player?.id;
   if (!playerId) {
     $(svgId).innerHTML = "";
     $(unmappedId).innerHTML = "";
     $(detailsId).innerHTML = "<strong>No active player</strong>";
+    $(legendId).hidden = true;
     return;
   }
   const visible = new Map(visibleCountriesFor(playerId).map(({ country, visibility }) => [country.name, { country, visibility }]));
@@ -3117,6 +3162,7 @@ function renderPlayerMapFor(player, { svgId, detailsId, unmappedId, labelId }) {
       }
     }
   }
+  renderMapLegend(legendId, mapped, visible, playerId);
   for (const entry of chooseMapLabels([...labels.values()], svg.viewBox.baseVal)) {
     appendCapabilityMarker(svg, entry);
     appendMapLabel(svg, entry, (countryName) => selectVisibleMapCountry(countryName, visible, playerId, svgId, detailsId));
@@ -3159,7 +3205,8 @@ function renderVisible() {
     svgId: "playerMap",
     detailsId: "mapDetails",
     unmappedId: "unmappedVisible",
-    labelId: "visiblePlayerLabel"
+    labelId: "visiblePlayerLabel",
+    legendId: "mapLegend"
   });
   renderMapHeadlineFor(player, "mapHeadline");
   renderRegionProgress(player, "regionProgress");
@@ -3171,7 +3218,8 @@ function renderPlanningVisible() {
     svgId: "planningPlayerMap",
     detailsId: "planningMapDetails",
     unmappedId: "planningUnmappedVisible",
-    labelId: "planningVisiblePlayerLabel"
+    labelId: "planningVisiblePlayerLabel",
+    legendId: "planningMapLegend"
   });
   renderMapHeadlineFor(player, "planningMapHeadline");
   renderRegionProgress(player, "planningRegionProgress");
@@ -3460,7 +3508,8 @@ function bindInteractivePlayerMap({ svgId, getPlayer, renderMap, detailsId }) {
 
 function bindMapControls() {
   $("gameToolbarActions").prepend($("resetMapButton"));
-  $("turnToolbar").append($("mapTurnFlowButton"), $("mapDetails"), $("unmappedVisible"), $("regionProgress"));
+  $("turnToolbar").prepend($("mapTurnFlowButton"));
+  $("turnToolbar").append($("mapDetails"), $("unmappedVisible"), $("regionProgress"));
   $("planningToolbar").append($("planningMapDetails"), $("planningUnmappedVisible"), $("planningRegionProgress"));
   $("toggleGameToolbar").addEventListener("click", (event) => {
     const collapsed = $("gameToolbarContents").classList.toggle("hidden");
