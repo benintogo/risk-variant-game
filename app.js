@@ -5,6 +5,7 @@ const ONLINE_GAME_ID_KEY = "risk-variant-online-game-id";
 const SESSION_ROLE_KEY = "risk-variant-session-role";
 const SESSION_PLAYER_KEY = "risk-variant-session-player-id";
 const RECRUIT_DRAFT_KEY_PREFIX = "risk-variant-recruit-draft";
+const MAP_SELECTION_KEY_PREFIX = "risk-variant-map-selection";
 
 const REGION_BONUSES = {
   "Eastern Europe": 11,
@@ -112,7 +113,7 @@ let mapDrag = null;
 let moderatorMapDrag = null;
 let suppressMapClick = false;
 let suppressModeratorMapClick = false;
-let selectedMapCountry = null;
+const localMapSelections = new Map();
 let selectedModeratorMapCountry = null;
 let onlineClient = null;
 let onlineGameId = localStorage.getItem(ONLINE_GAME_ID_KEY) || "";
@@ -646,6 +647,7 @@ function shuffled(items) {
 }
 
 function startGame(names) {
+  localMapSelections.clear();
   game = blankState();
   game.players = names.map((name, index) => ({
     id: `p${index + 1}`,
@@ -2435,7 +2437,6 @@ function appendOceanLayer(svg, view) {
 
 function resetMapView(renderNow = true, player = visibleSessionPlayer()) {
   mapView = { x: 0, y: 0, width: 1000, height: 500 };
-  selectedMapCountry = null;
   const strongest = player
     ? ownedCountries(player.id)
         .slice()
@@ -3038,16 +3039,37 @@ function moderatorDetailHtml(country) {
   `;
 }
 
+function mapSelectionKey(playerId) {
+  return `${MAP_SELECTION_KEY_PREFIX}-${onlineGameId.toUpperCase()}-${playerId}`;
+}
+
+function selectedVisibleMapEntry(playerId, visible) {
+  const lastSelected = onlineGameId ? localStorage.getItem(mapSelectionKey(playerId)) : localMapSelections.get(playerId);
+  return visible.get(lastSelected)
+    || visible.get(capitalCountryFor(playerId)?.name)
+    || visible.values().next().value;
+}
+
+function renderSelectedMapEntry(entry, playerId, svgId, detailsId) {
+  const selectedName = entry?.country.name;
+  $(svgId).querySelectorAll(".map-country").forEach((node) => {
+    node.classList.toggle("active", node.dataset.country === selectedName);
+  });
+  const details = entry
+    ? visibleDetailHtml(entry.country, entry.visibility, playerId) + contextualActionHtml(entry.country, playerId, detailsId)
+    : "<strong>No countries visible</strong>";
+  const pending = pendingNuclearDecisionForSession();
+  $(detailsId).innerHTML = pending ? nuclearRetaliationPanelHtml(pending) + details : details;
+  updateContextAttackDice(detailsId);
+  updateContextClaimAmount(detailsId);
+}
+
 function selectVisibleMapCountry(countryName, visible, playerId, svgId = "playerMap", detailsId = "mapDetails") {
   const entry = visible.get(countryName);
   if (!entry) return;
-  selectedMapCountry = countryName;
-  $(svgId).querySelectorAll(".map-country").forEach((node) => {
-    node.classList.toggle("active", node.dataset.country === countryName);
-  });
-  $(detailsId).innerHTML = visibleDetailHtml(entry.country, entry.visibility, playerId) + contextualActionHtml(entry.country, playerId, detailsId);
-  updateContextAttackDice(detailsId);
-  updateContextClaimAmount(detailsId);
+  if (onlineGameId) localStorage.setItem(mapSelectionKey(playerId), countryName);
+  else localMapSelections.set(playerId, countryName);
+  renderSelectedMapEntry(entry, playerId, svgId, detailsId);
 }
 
 function applyKnownOwnerColor(path, country) {
@@ -3195,21 +3217,7 @@ function renderPlayerMapFor(player, { svgId, detailsId, unmappedId, labelId, leg
     });
   });
 
-  const selected = selectedMapCountry ? visible.get(selectedMapCountry) : null;
-  const pendingNuclear = pendingNuclearDecisionForSession();
-  if (selected) {
-    svg.querySelectorAll(".map-country").forEach((node) => {
-      node.classList.toggle("active", node.dataset.country === selectedMapCountry);
-    });
-  }
-  const selectedDetails = selected
-    ? visibleDetailHtml(selected.country, selected.visibility, playerId) + contextualActionHtml(selected.country, playerId, detailsId)
-    : "<strong>Visible Map</strong><p>Select a country on the map or a visible place below to see details.</p>";
-  $(detailsId).innerHTML = pendingNuclear
-    ? nuclearRetaliationPanelHtml(pendingNuclear) + selectedDetails
-    : selectedDetails;
-  updateContextAttackDice(detailsId);
-  updateContextClaimAmount(detailsId);
+  renderSelectedMapEntry(selectedVisibleMapEntry(playerId, visible), playerId, svgId, detailsId);
 }
 
 function renderVisible() {
@@ -3416,7 +3424,6 @@ function render() {
     const turnPlayerId = currentPlayer()?.id || "";
     if (turnPlayerId && lastRenderedTurnPlayerId && turnPlayerId !== lastRenderedTurnPlayerId) {
       game.turnStage = "attack";
-      selectedMapCountry = null;
     }
     lastRenderedTurnPlayerId = turnPlayerId;
   } else if (game.phase !== "planning") {
@@ -3448,7 +3455,6 @@ function showTab(name) {
   $("turnToolbar").classList.toggle("hidden", name !== "turn");
   if (name === "turn") {
     $("visiblePlayer").dataset.followTurn = "true";
-    selectedMapCountry = null;
     renderVisible();
   }
 }
